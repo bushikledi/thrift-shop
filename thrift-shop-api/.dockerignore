@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist
+build
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage
+.nyc_output
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+CHANGELOG.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+# Prisma (we copy this separately)
+# Keep schema.prisma and migrations
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp

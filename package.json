@@ -1,0 +1,58 @@
+{
+  "name": "thrift-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thrift Shop - A second-hand marketplace platform",
+  "workspaces": [
+    "thrift-shop-api",
+    "thrift-shop-app"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run start:dev -w thrift-shop-api",
+    "dev:app": "npm run dev -w thrift-shop-app",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build -w thrift-shop-api",
+    "build:app": "npm run build -w thrift-shop-app",
+    "start": "npm run start --workspaces --if-present",
+    "start:api": "npm run start:prod -w thrift-shop-api",
+    "start:app": "npm run start -w thrift-shop-app",
+    "lint": "npm run lint --workspaces",
+    "lint:api": "npm run lint -w thrift-shop-api",
+    "lint:app": "npm run lint -w thrift-shop-app",
+    "test": "npm run test --workspaces --if-present",
+    "test:api": "npm run test -w thrift-shop-api",
+    "test:app": "npm run test -w thrift-shop-app",
+    "test:e2e:api": "npm run test:e2e -w thrift-shop-api",
+    "test:e2e:app": "npm run test:e2e -w thrift-shop-app",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "db:generate": "npm run -w thrift-shop-api prisma generate",
+    "db:migrate": "npm run -w thrift-shop-api prisma migrate deploy",
+    "db:migrate:dev": "npm run -w thrift-shop-api prisma migrate dev",
+    "db:seed": "npm run db:seed -w thrift-shop-api",
+    "db:reset": "npm run db:reset -w thrift-shop-api",
+    "db:studio": "npm run db:studio -w thrift-shop-api",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build",
+    "clean": "rm -rf node_modules thrift-shop-api/node_modules thrift-shop-app/node_modules"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/thrift-shop.git"
+  },
+  "keywords": [
+    "thrift-shop",
+    "marketplace",
+    "e-commerce",
+    "nestjs",
+    "nextjs"
+  ],
+  "author": "",
+  "license": "MIT"
+}

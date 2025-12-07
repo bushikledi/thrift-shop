@@ -1,0 +1,464 @@
+{
+  "nav": {
+    "home": "Kryefaqja",
+    "shop": "Dyqani",
+    "categories": "Kategoritë",
+    "vendors": "Shitësit",
+    "about": "Rreth Nesh",
+    "cart": "Shporta",
+    "login": "Hyr",
+    "signup": "Regjistrohu",
+    "logout": "Dil",
+    "account": "Llogaria Ime",
+    "dashboard": "Paneli",
+    "orders": "Porositë",
+    "savedItems": "Të Ruajtura",
+    "settings": "Cilësimet"
+  },
+  "common": {
+    "search": "Kërko",
+    "searchPlaceholder": "Kërko artikuj...",
+    "loading": "Duke ngarkuar...",
+    "error": "Diçka shkoi keq",
+    "retry": "Provo përsëri",
+    "save": "Ruaj",
+    "cancel": "Anulo",
+    "delete": "Fshi",
+    "edit": "Ndrysho",
+    "view": "Shiko",
+    "close": "Mbyll",
+    "back": "Kthehu",
+    "next": "Tjetër",
+    "previous": "I mëparshëm",
+    "submit": "Dërgo",
+    "confirm": "Konfirmo",
+    "yes": "Po",
+    "no": "Jo",
+    "or": "ose",
+    "and": "dhe",
+    "all": "Të gjitha",
+    "none": "Asnjë",
+    "showing": "Duke shfaqur",
+    "of": "nga",
+    "results": "rezultate",
+    "noResults": "Nuk u gjetën rezultate",
+    "currency": "ALL",
+    "items": "artikuj",
+    "active": "aktive",
+    "verified": "I Verifikuar",
+    "joined": "U bashkua",
+    "products": "produkte",
+    "searchSellers": "Kërko shitësit...",
+    "browseProducts": "Shfleto Produktet",
+    "backToShop": "Kthehu në Dyqan",
+    "backToSellers": "Kthehu te shitësit",
+    "backToHome": "Kthehu në Fillim",
+    "comingSoon": "Së Shpejti",
+    "available": "i disponueshëm"
+  },
+  "home": {
+    "hero": {
+      "title": "Zbulo Gjëra Unike",
+      "subtitle": "Bli artikuj vintage, të përdorur dhe thrift të kuruar",
+      "cta": "Fillo Blerjen"
+    },
+    "featured": {
+      "title": "Artikuj të Veçantë",
+      "viewAll": "Shiko të Gjitha"
+    },
+    "categories": {
+      "title": "Bli sipas Kategorisë"
+    },
+    "sellers": {
+      "title": "Shitësit Kryesorë"
+    }
+  },
+  "product": {
+    "addToCart": "Shto në Shportë",
+    "addedToCart": "U shtua në shportë!",
+    "buyNow": "Bli Tani",
+    "outOfStock": "Jashtë Stokut",
+    "inStock": "Në Stok",
+    "quantity": "Sasia",
+    "condition": "Gjendja",
+    "size": "Madhësia",
+    "brand": "Marka",
+    "color": "Ngjyra",
+    "measurements": "Matjet",
+    "description": "Përshkrimi",
+    "details": "Detajet",
+    "shipping": "Dërgesa",
+    "returns": "Kthimet",
+    "soldBy": "Shitur nga",
+    "viewSeller": "Shiko Shitësin",
+    "relatedItems": "Mund t'ju Pëlqejë",
+    "uniqueItem": "Artikull Unik",
+    "notFound": "Produkti nuk u gjet",
+    "notFoundDescription": "Produkti që kërkoni nuk ekziston ose është hequr.",
+    "share": "Ndaj",
+    "linkCopied": "Linku u kopjua!",
+    "freeShipping": "Dërgesë falas për këtë artikull",
+    "securePayment": "Pagesë e sigurt e garantuar"
+  },
+  "cart": {
+    "title": "Shporta e Blerjeve",
+    "empty": "Shporta juaj është bosh",
+    "continueShopping": "Vazhdo Blerjen",
+    "subtotal": "Nëntotali",
+    "shipping": "Dërgesa",
+    "total": "Totali",
+    "checkout": "Vazho te Pagesa",
+    "remove": "Hiq",
+    "updateQuantity": "Përditëso sasinë",
+    "itemAdded": "Artikulli u shtua në shportë",
+    "itemRemoved": "Artikulli u hoq nga shporta",
+    "drawer": {
+      "title": "Shporta Juaj",
+      "empty": "Shporta juaj është bosh",
+      "viewCart": "Shiko Shportën"
+    }
+  },
+  "checkout": {
+    "title": "Pagesa",
+    "shipping": {
+      "title": "Adresa e Dërgesës",
+      "street": "Adresa e Rrugës",
+      "city": "Qyteti",
+      "state": "Rajoni",
+      "zip": "Kodi Postar",
+      "country": "Shteti"
+    },
+    "contact": {
+      "title": "Informacioni i Kontaktit",
+      "name": "Emri i Plotë",
+      "email": "Email",
+      "phone": "Numri i Telefonit"
+    },
+    "payment": {
+      "title": "Mënyra e Pagesës",
+      "cod": "Pagesë në Dorëzim",
+      "codDescription": "Paguaj kur të mbërrijë porosia",
+      "card": "Kartë Krediti/Debiti",
+      "cardDescription": "Paguaj në mënyrë të sigurt online"
+    },
+    "review": {
+      "title": "Rishiko Porosinë"
+    },
+    "placeOrder": "Vendos Porosinë",
+    "orderNotes": "Shënime Porosie (opsionale)",
+    "guestCheckout": "Duke blerë si vizitor. Mund të",
+    "createAccount": "krijoni një llogari",
+    "toTrackOrders": "për të gjurmuar porositë."
+  },
+  "order": {
+    "success": {
+      "title": "Porosia u Vendos!",
+      "message": "Faleminderit për porosinë tuaj",
+      "orderNumber": "Numri i Porosisë",
+      "trackOrder": "Gjurmo Porosinë",
+      "continueShopping": "Vazhdo Blerjen",
+      "thankYou": "Faleminderit për blerjen!",
+      "confirmationSent": "Një email konfirmimi është dërguar në adresën tuaj."
+    },
+    "status": {
+      "pending": "Në Pritje",
+      "confirmed": "Konfirmuar",
+      "processing": "Duke u Procesuar",
+      "shipped": "Dërguar",
+      "delivered": "Dorëzuar",
+      "cancelled": "Anuluar"
+    },
+    "details": {
+      "title": "Detajet e Porosisë",
+      "items": "Artikujt e Porosisë",
+      "shippingAddress": "Adresa e Dërgesës",
+      "paymentMethod": "Mënyra e Pagesës",
+      "orderDate": "Data e Porosisë",
+      "estimatedDelivery": "Dorëzimi i Parashikuar"
+    },
+    "track": {
+      "title": "Gjurmo Porosinë",
+      "enterNumber": "Vendos numrin e porosisë",
+      "track": "Gjurmo"
+    },
+    "noOrders": "Nuk ka porosi ende",
+    "noOrdersDescription": "Kur të bëni një porosi, ajo do të shfaqet këtu",
+    "viewDetails": "Shiko Detajet"
+  },
+  "auth": {
+    "login": {
+      "title": "Mirësevini Përsëri",
+      "subtitle": "Hyni në llogarinë tuaj",
+      "email": "Email",
+      "password": "Fjalëkalimi",
+      "forgotPassword": "Keni harruar fjalëkalimin?",
+      "noAccount": "Nuk keni llogari?",
+      "signUp": "Regjistrohu",
+      "success": "Mirësevini përsëri!",
+      "error": "Email ose fjalëkalim i gabuar"
+    },
+    "signup": {
+      "title": "Krijo Llogari",
+      "subtitle": "Bashkohu me komunitetin tonë",
+      "name": "Emri i Plotë",
+      "email": "Email",
+      "password": "Fjalëkalimi",
+      "confirmPassword": "Konfirmo Fjalëkalimin",
+      "phone": "Telefoni (opsional)",
+      "role": "Dua të",
+      "customer": "Blej Artikuj",
+      "vendor": "Shes Artikuj",
+      "vendorFields": {
+        "displayName": "Emri i Dyqanit",
+        "bio": "Përshkrimi i Dyqanit (opsional)"
+      },
+      "hasAccount": "Keni tashmë një llogari?",
+      "signIn": "Hyni",
+      "terms": "Duke u regjistruar, pranoni Kushtet e Shërbimit dhe Politikën e Privatësisë",
+      "success": "Llogaria u krijua me sukses!",
+      "error": "Nuk u krijua llogaria"
+    }
+  },
+  "account": {
+    "title": "Llogaria Ime",
+    "profile": "Profili",
+    "totalOrders": "Porositë Totale",
+    "savedItems": "Artikuj të Ruajtur",
+    "accountStatus": "Statusi i Llogarisë",
+    "customer": "Klient",
+    "email": "Email",
+    "phone": "Telefon",
+    "noPhone": "Nuk ka numër telefoni",
+    "settings": {
+      "title": "Cilësimet",
+      "profile": "Cilësimet e Profilit",
+      "profileDescription": "Përditëso informacionin personal",
+      "address": "Adresa e Parazgjedhur",
+      "addressDescription": "Adresa juaj e parazgjedhur e dërgesës",
+      "password": "Ndrysho Fjalëkalimin",
+      "passwordDescription": "Përditëso fjalëkalimin e llogarisë",
+      "notifications": "Njoftimet",
+      "notificationsDescription": "Menaxho preferencat e njoftimeve",
+      "danger": "Zona e Rrezikshme",
+      "deleteAccount": "Fshi Llogarinë",
+      "deleteAccountDescription": "Fshi përgjithmonë llogarinë dhe të gjitha të dhënat",
+      "currentPassword": "Fjalëkalimi Aktual",
+      "newPassword": "Fjalëkalimi i Ri",
+      "confirmNewPassword": "Konfirmo Fjalëkalimin e Ri",
+      "updateProfile": "Përditëso Profilin",
+      "updateAddress": "Përditëso Adresën",
+      "updatePassword": "Përditëso Fjalëkalimin",
+      "emailNotifications": "Njoftimet Email",
+      "orderUpdates": "Përditësimet e Porosive",
+      "promotions": "Promocionet & Ofertat"
+    }
+  },
+  "vendor": {
+    "dashboard": {
+      "title": "Paneli",
+      "welcome": "Mirësevini përsëri",
+      "setupRequired": "Kërkohet Konfigurimi i Shitësit",
+      "setupDescription": "Llogaria juaj është e shënuar si shitës por nuk ka një profil shitësi të konfiguruar.",
+      "contactSupport": "Ju lutem kontaktoni mbështetjen ose provoni të regjistroheni përsëri me një llogari të re për të përfunduar konfigurimin e shitësit.",
+      "stats": {
+        "products": "Produktet",
+        "orders": "Porositë",
+        "pending": "Porosi në Pritje",
+        "revenue": "Të Ardhura Totale"
+      },
+      "recentOrders": "Porositë e Fundit",
+      "viewAllOrders": "Shiko të Gjitha Porositë",
+      "noRecentOrders": "Nuk ka porosi të fundit"
+    },
+    "products": {
+      "title": "Produktet e Mia",
+      "add": "Shto Produkt",
+      "edit": "Ndrysho Produktin",
+      "delete": "Fshi Produktin",
+      "deleteConfirm": "Jeni i sigurt që doni të fshini këtë produkt?",
+      "deleted": "Produkti u fshi me sukses",
+      "noProducts": "Nuk ka produkte ende",
+      "noProductsDescription": "Shtoni produktin tuaj të parë për të filluar shitjen",
+      "search": "Kërko produkte...",
+      "form": {
+        "title": "Titulli",
+        "description": "Përshkrimi",
+        "price": "Çmimi",
+        "comparePrice": "Çmimi i Krahasuar (opsional)",
+        "condition": "Gjendja",
+        "category": "Kategoria",
+        "brand": "Marka (opsional)",
+        "size": "Madhësia (opsional)",
+        "color": "Ngjyra (opsional)",
+        "gender": "Gjinia (opsional)",
+        "quantity": "Sasia",
+        "images": "Imazhet",
+        "addImages": "Shto Imazhe",
+        "dragImages": "Tërhiq imazhet këtu ose kliko për të ngarkuar",
+        "create": "Krijo Produktin",
+        "update": "Përditëso Produktin",
+        "creating": "Duke krijuar...",
+        "updating": "Duke përditësuar..."
+      }
+    },
+    "orders": {
+      "title": "Porositë",
+      "noOrders": "Nuk ka porosi ende",
+      "noOrdersDescription": "Kur klientët bëjnë porosi, ato do të shfaqen këtu",
+      "updateStatus": "Përditëso Statusin",
+      "trackingNumber": "Numri i Gjurmimit",
+      "vendorNotes": "Shënime",
+      "filter": "Filtro sipas statusit",
+      "all": "Të Gjitha Porositë"
+    },
+    "settings": {
+      "title": "Cilësimet e Dyqanit",
+      "shopInfo": "Informacioni i Dyqanit",
+      "shopInfoDescription": "Përditëso detajet e dyqanit",
+      "displayName": "Emri i Shfaqur",
+      "bio": "Përshkrimi i Dyqanit",
+      "contactEmail": "Email Kontakti",
+      "contactPhone": "Telefoni i Kontaktit",
+      "address": "Adresa e Dyqanit",
+      "socialLinks": "Linqet Sociale",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "verification": "Statusi i Verifikimit",
+      "verified": "Dyqani juaj është i verifikuar",
+      "notVerified": "Dyqani juaj nuk është i verifikuar ende",
+      "saveChanges": "Ruaj Ndryshimet",
+      "updateSuccess": "Cilësimet u përditësuan me sukses",
+      "updateError": "Përditësimi i cilësimeve dështoi"
+    }
+  },
+  "categories": {
+    "title": "Kategoritë",
+    "subtitle": "Shfletoni koleksionin tonë sipas kategorisë",
+    "viewAll": "Shiko të Gjitha",
+    "noCategories": "Nuk u gjetën kategori"
+  },
+  "vendors": {
+    "title": "Shitësit",
+    "subtitle": "Zbuloni shitës të besuar në tregun tonë",
+    "notFound": "Shitësi nuk u gjet",
+    "notFoundDescription": "Ky shitës nuk ekziston ose është hequr.",
+    "noSellers": "Nuk u gjetën shitës",
+    "products": "Produktet",
+    "memberSince": "Anëtar që nga",
+    "contact": "Kontakto Shitësin",
+    "viewShop": "Shiko Dyqanin"
+  },
+  "shop": {
+    "title": "Dyqani",
+    "filters": {
+      "title": "Filtrat",
+      "clear": "Pastro të Gjitha",
+      "category": "Kategoria",
+      "condition": "Gjendja",
+      "price": "Gama e Çmimit",
+      "minPrice": "Min",
+      "maxPrice": "Max",
+      "size": "Madhësia",
+      "brand": "Marka",
+      "apply": "Apliko Filtrat"
+    },
+    "sort": {
+      "title": "Rendit sipas",
+      "newest": "Më të Rejat",
+      "priceAsc": "Çmimi: Nga i Ulëti",
+      "priceDesc": "Çmimi: Nga i Larti",
+      "popular": "Më të Popullarit"
+    }
+  },
+  "search": {
+    "title": "Kërko",
+    "placeholder": "Kërko produkte, kategori, shitës...",
+    "recentSearches": "Kërkimet e Fundit",
+    "clearRecent": "Pastro",
+    "noResults": "Nuk u gjetën rezultate për",
+    "tryAgain": "Provoni të kërkoni diçka tjetër",
+    "hint": "Shtypni ⌘K për të kërkuar kurdo"
+  },
+  "condition": {
+    "LIKE_NEW": "Si i Ri",
+    "VERY_GOOD": "Shumë Mirë",
+    "GOOD": "Mirë",
+    "FAIR": "Mjaftueshëm",
+    "POOR": "Dobët"
+  },
+  "gender": {
+    "MEN": "Burra",
+    "WOMEN": "Gra",
+    "UNISEX": "Uniseks",
+    "KIDS": "Fëmijë"
+  },
+  "about": {
+    "title": "Rreth Nesh",
+    "subtitle": "Destinacioni juaj për gjetje unike thrift",
+    "mission": {
+      "title": "Misioni Ynë",
+      "description": "Ne besojmë në modën e qëndrueshme dhe dhënien e një jete të dytë artikujve të përdorur. Platforma jonë lidh shitësit me blerësit që vlerësojnë cilësinë, artikujt unikë me çmime të përballueshme."
+    },
+    "values": {
+      "title": "Vlerat Tona",
+      "sustainability": "Qëndrueshmëria",
+      "sustainabilityDesc": "Reduktimi i mbeturinave të modës duke promovuar blerjen e dorës së dytë",
+      "quality": "Cilësia",
+      "qualityDesc": "Artikuj të kuruar me kujdes që plotësojnë standardet tona",
+      "community": "Komuniteti",
+      "communityDesc": "Ndërtimi i lidhjeve midis shitësve dhe blerësve"
+    },
+    "contact": {
+      "title": "Na Kontaktoni",
+      "email": "Na dërgoni email në",
+      "phone": "Na telefononi në"
+    }
+  },
+  "contact": {
+    "title": "Na Kontaktoni",
+    "subtitle": "Do të donim të dëgjonim nga ju",
+    "form": {
+      "name": "Emri Juaj",
+      "email": "Email Juaj",
+      "subject": "Subjekti",
+      "message": "Mesazhi",
+      "send": "Dërgo Mesazhin",
+      "sending": "Duke dërguar...",
+      "success": "Mesazhi u dërgua me sukses!",
+      "error": "Nuk u dërgua mesazhi"
+    },
+    "info": {
+      "title": "Informacioni i Kontaktit",
+      "address": "Adresa",
+      "email": "Email",
+      "phone": "Telefoni",
+      "hours": "Orari i Punës",
+      "hoursValue": "E Hënë - E Premte: 9:00 - 18:00"
+    }
+  },
+  "footer": {
+    "about": "Rreth Nesh",
+    "help": "Qendra e Ndihmës",
+    "contact": "Kontakti",
+    "terms": "Kushtet e Shërbimit",
+    "privacy": "Politika e Privatësisë",
+    "copyright": "© 2024 Thrift Shop. Të gjitha të drejtat e rezervuara.",
+    "description": "Destinacioni juaj për gjetje unike thrift. Blini modë të qëndrueshme dhe jepini artikujve të përdorur një jetë të dytë.",
+    "quickLinks": "Linqe të Shpejta",
+    "support": "Mbështetja",
+    "legal": "Ligjore",
+    "followUs": "Na Ndiqni"
+  },
+  "errors": {
+    "required": "Kjo fushë është e detyrueshme",
+    "invalidEmail": "Ju lutem vendosni një email të vlefshëm",
+    "minLength": "Duhet të jetë të paktën {min} karaktere",
+    "maxLength": "Duhet të jetë më së shumti {max} karaktere",
+    "passwordMismatch": "Fjalëkalimet nuk përputhen",
+    "serverError": "Gabim serveri. Ju lutem provoni përsëri më vonë.",
+    "networkError": "Gabim rrjeti. Ju lutem kontrolloni lidhjen tuaj.",
+    "unauthorized": "Ju lutem hyni për të vazhduar",
+    "forbidden": "Nuk keni leje për ta bërë këtë",
+    "notFound": "Faqja nuk u gjet"
+  }
+}

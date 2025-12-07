@@ -1,0 +1,293 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  API_IMAGE_NAME: ${{ github.repository }}/api
+  APP_IMAGE_NAME: ${{ github.repository }}/app
+
+jobs:
+  # ================================
+  # Lint and Type Check
+  # ================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint API
+        run: npm run lint:api
+
+      - name: Lint App
+        run: npm run lint:app
+
+      - name: Type check API
+        working-directory: thrift-shop-api
+        run: npx tsc --noEmit
+
+      - name: Type check App
+        working-directory: thrift-shop-app
+        run: npx tsc --noEmit
+
+  # ================================
+  # Test API
+  # ================================
+  test-api:
+    name: Test API
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: thriftshop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thriftshop_test
+
+      - name: Run migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thriftshop_test
+
+      - name: Run unit tests
+        run: npm run test:api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thriftshop_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret-key-for-ci-that-is-at-least-64-characters-long-for-security
+
+      - name: Run e2e tests
+        run: npm run test:e2e:api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thriftshop_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret-key-for-ci-that-is-at-least-64-characters-long-for-security
+
+  # ================================
+  # Test App
+  # ================================
+  test-app:
+    name: Test App
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test:app || true
+
+      - name: Build App
+        run: npm run build:app
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  # ================================
+  # Build and Push Docker Images
+  # ================================
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-api, test-app]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Extract metadata for App
+        id: meta-app
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./thrift-shop-api
+          file: ./thrift-shop-api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push App image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./thrift-shop-app
+          file: ./thrift-shop-app/Dockerfile
+          push: true
+          tags: ${{ steps.meta-app.outputs.tags }}
+          labels: ${{ steps.meta-app.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3000' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ================================
+  # Deploy to Staging
+  # ================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Deploy notification
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "API Image: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:develop"
+          echo "App Image: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:develop"
+      # Add actual deployment steps here (e.g., kubectl, docker-compose, etc.)
+
+  # ================================
+  # Deploy to Production
+  # ================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy notification
+        run: |
+          echo "🚀 Deploying to production environment..."
+          echo "API Image: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:latest"
+          echo "App Image: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:latest"
+      # Add actual deployment steps here
+
+  # ================================
+  # Security Scan
+  # ================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high || true
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (API)
+        uses: aquasecurity/trivy-action@master
+        if: github.event_name == 'push'
+        with:
+          scan-type: "fs"
+          scan-ref: "./thrift-shop-api"
+          format: "sarif"
+          output: "trivy-api-results.sarif"
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (App)
+        uses: aquasecurity/trivy-action@master
+        if: github.event_name == 'push'
+        with:
+          scan-type: "fs"
+          scan-ref: "./thrift-shop-app"
+          format: "sarif"
+          output: "trivy-app-results.sarif"
+        continue-on-error: true

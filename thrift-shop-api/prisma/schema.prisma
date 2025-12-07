@@ -1,0 +1,460 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum ProductCondition {
+  LIKE_NEW
+  VERY_GOOD
+  GOOD
+  FAIR
+  POOR
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  COD // Cash on Delivery
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum MediaOwnerType {
+  PRODUCT
+  VENDOR
+  USER
+  CATEGORY
+}
+
+// =============================================================================
+// USER & AUTH
+// =============================================================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  phone         String?
+  avatar        String?
+  role          UserRole  @default(CUSTOMER)
+  isActive      Boolean   @default(true) @map("is_active")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  address       Json?     // { street, city, state, zip, country }
+  
+  // Relations
+  vendor        Vendor?
+  orders        Order[]   @relation("BuyerOrders")
+  savedItems    SavedItem[]
+  reviews       Review[]
+  
+  // Timestamps
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@map("users")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@index([email, used, expiresAt])
+  
+  @@map("password_resets")
+}
+
+// =============================================================================
+// VENDOR
+// =============================================================================
+
+model Vendor {
+  id            String    @id @default(uuid())
+  userId        String    @unique @map("user_id")
+  name          String    @unique // URL-friendly slug
+  displayName   String    @map("display_name")
+  bio           String?
+  logo          String?
+  banner        String?
+  verified      Boolean   @default(false)
+  rating        Float     @default(0)
+  reviewCount   Int       @default(0) @map("review_count")
+  
+  // Business details
+  address       Json?     // { street, city, state, zip, country }
+  payoutDetails Json?     @map("payout_details") // encrypted bank/payment info
+  settings      Json?     // { policies, shipping options, etc }
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products      Product[]
+  orders        Order[]   @relation("VendorOrders")
+  reviews       Review[]
+  
+  // Timestamps
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@map("vendors")
+}
+
+// =============================================================================
+// CATEGORY
+// =============================================================================
+
+model Category {
+  id          String     @id @default(uuid())
+  slug        String     @unique
+  name        String
+  description String?
+  image       String?
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  
+  // Hierarchical structure
+  parentId    String?    @map("parent_id")
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  
+  // Relations
+  products    Product[]
+  
+  // Timestamps
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  @@map("categories")
+}
+
+// =============================================================================
+// PRODUCT
+// =============================================================================
+
+model Product {
+  id           String           @id @default(uuid())
+  vendorId     String           @map("vendor_id")
+  categoryId   String?          @map("category_id")
+  
+  // Basic info
+  title        String
+  slug         String           @unique
+  description  String?
+  
+  // Pricing
+  price        Decimal          @db.Decimal(10, 2)
+  comparePrice Decimal?         @map("compare_price") @db.Decimal(10, 2)
+  
+  // Inventory
+  quantity     Int              @default(1)
+  sku          String?
+  isUnique     Boolean          @default(true) @map("is_unique") // Single item (thrift)
+  
+  // Thrift-specific
+  condition    ProductCondition @default(GOOD)
+  brand        String?
+  color        String?
+  size         String?          // S, M, L, XL, or "S-M", "One Size"
+  gender       String?          // Men, Women, Unisex, Kids
+  measurements Json?            // { chest, length, waist, hips, inseam }
+  
+  // Metadata
+  tags         String[]
+  metadata     Json?            // Additional flexible data
+  
+  // Status
+  isActive     Boolean          @default(true) @map("is_active")
+  isFeatured   Boolean          @default(false) @map("is_featured")
+  viewCount    Int              @default(0) @map("view_count")
+  
+  // Relations
+  vendor       Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  media        Media[]
+  orderItems   OrderItem[]
+  cartItems    CartItem[]
+  savedBy      SavedItem[]
+  reviews      Review[]
+  
+  // Timestamps
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  
+  // Indexes for search and filtering
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([condition])
+  @@index([price])
+  @@index([isActive, isFeatured])
+  @@index([vendorId, isActive])
+  @@index([createdAt(sort: Desc)])
+  @@index([categoryId, isActive, createdAt(sort: Desc)])
+  @@index([categoryId, isActive, price])
+  @@index([isActive, price])
+  
+  @@map("products")
+}
+
+// =============================================================================
+// MEDIA
+// =============================================================================
+
+model Media {
+  id         String         @id @default(uuid())
+  ownerType  MediaOwnerType @map("owner_type")
+  ownerId    String         @map("owner_id")
+  
+  url        String
+  filename   String
+  mimeType   String         @map("mime_type")
+  size       Int            // bytes
+  width      Int?
+  height     Int?
+  
+  // Variants (thumbnails, webp, etc)
+  variants   Json?          // { thumb: url, webp: url, etc }
+  
+  sortOrder  Int            @default(0) @map("sort_order")
+  
+  // Relations
+  product    Product?       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt  DateTime       @default(now()) @map("created_at")
+  
+  @@index([ownerType, ownerId])
+  
+  @@map("media")
+}
+
+// =============================================================================
+// CART
+// =============================================================================
+
+model CartSession {
+  id        String     @id @default(uuid())
+  userId    String?    @map("user_id") // null for guest carts
+  expiresAt DateTime   @map("expires_at")
+  
+  // Relations
+  items     CartItem[]
+  
+  // Timestamps
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  
+  @@index([userId])
+  @@index([expiresAt])
+  
+  @@map("cart_sessions")
+}
+
+model CartItem {
+  id        String      @id @default(uuid())
+  sessionId String      @map("session_id")
+  productId String      @map("product_id")
+  quantity  Int         @default(1)
+  
+  // Relations
+  session   CartSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  
+  @@unique([sessionId, productId])
+  
+  @@map("cart_items")
+}
+
+// =============================================================================
+// ORDER
+// =============================================================================
+
+model Order {
+  id             String        @id @default(uuid())
+  orderNumber    String        @unique @map("order_number") // Human-readable: TS-2024-0001
+  
+  // Buyer info (nullable for guest checkout)
+  buyerId        String?       @map("buyer_id")
+  buyer          User?         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  guestInfo      Json?         @map("guest_info") // { name, email, phone }
+  
+  // Vendor
+  vendorId       String        @map("vendor_id")
+  vendor         Vendor        @relation("VendorOrders", fields: [vendorId], references: [id])
+  
+  // Shipping
+  shippingAddress Json         @map("shipping_address") // { street, city, state, zip, country }
+  shippingMethod  String?      @map("shipping_method")
+  shippingAmount  Decimal      @default(0) @map("shipping_amount") @db.Decimal(10, 2)
+  trackingNumber  String?      @map("tracking_number")
+  
+  // Amounts
+  subtotal       Decimal       @db.Decimal(10, 2)
+  discount       Decimal       @default(0) @db.Decimal(10, 2)
+  total          Decimal       @db.Decimal(10, 2)
+  
+  // Status
+  status         OrderStatus   @default(PENDING)
+  paymentMethod  PaymentMethod @default(COD) @map("payment_method")
+  paymentStatus  PaymentStatus @default(PENDING) @map("payment_status")
+  
+  // Notes
+  customerNotes  String?       @map("customer_notes")
+  vendorNotes    String?       @map("vendor_notes")
+  
+  // Relations
+  items          OrderItem[]
+  
+  // Timestamps
+  confirmedAt    DateTime?     @map("confirmed_at")
+  shippedAt      DateTime?     @map("shipped_at")
+  deliveredAt    DateTime?     @map("delivered_at")
+  cancelledAt    DateTime?     @map("cancelled_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  
+  @@index([buyerId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([buyerId, status, createdAt(sort: Desc)])
+  @@index([vendorId, status, createdAt(sort: Desc)])
+  @@index([orderNumber])
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String   @map("order_id")
+  productId        String   @map("product_id")
+  
+  // Snapshot at time of purchase
+  title            String
+  price            Decimal  @db.Decimal(10, 2)
+  quantity         Int      @default(1)
+  conditionSnapshot String? @map("condition_snapshot")
+  
+  // Relations
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product          Product  @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+// =============================================================================
+// REVIEWS
+// =============================================================================
+
+model Review {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  vendorId   String?  @map("vendor_id")
+  productId  String?  @map("product_id")
+  
+  rating     Int      // 1-5
+  title      String?
+  comment    String?
+  
+  isVerified Boolean  @default(false) @map("is_verified") // From actual purchase
+  
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor     Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  product    Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Indexes for efficient queries
+  @@index([productId, createdAt(sort: Desc)])
+  @@index([vendorId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([productId, rating])
+  @@index([vendorId, rating])
+  
+  @@map("reviews")
+}
+
+// =============================================================================
+// SAVED ITEMS (Wishlist)
+// =============================================================================
+
+model SavedItem {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@unique([userId, productId])
+  
+  @@map("saved_items")
+}
+
+// =============================================================================
+// AUDIT LOG
+// =============================================================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String   // CREATE, UPDATE, DELETE, LOGIN, etc
+  entityType String   @map("entity_type") // User, Product, Order, etc
+  entityId   String?  @map("entity_id")
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  
+  @@map("audit_logs")
+}
