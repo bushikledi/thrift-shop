@@ -41,12 +41,6 @@ export class NotificationPreferencesDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => NotificationChannelPreferencesDto)
-  push?: NotificationChannelPreferencesDto;
-
-  @ApiPropertyOptional({ type: NotificationChannelPreferencesDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => NotificationChannelPreferencesDto)
   sms?: NotificationChannelPreferencesDto;
 }
 
@@ -64,7 +58,6 @@ export class UserPreferencesResponseDto {
     description: 'Notification opt-ins per channel',
     example: {
       email: { orders: true, promotions: false, reviews: true, messages: true },
-      push: { orders: true, promotions: false, reviews: false, messages: true },
       sms: {
         orders: false,
         promotions: false,
@@ -75,7 +68,6 @@ export class UserPreferencesResponseDto {
   })
   notifications!: Required<{
     email: Required<NotificationChannelPreferencesDto>;
-    push: Required<NotificationChannelPreferencesDto>;
     sms: Required<NotificationChannelPreferencesDto>;
   }>;
 }

@@ -34,7 +34,6 @@ type NotificationSettings = Record<NotificationChannel, ChannelSettings>;
 
 const FALLBACK_SETTINGS: NotificationSettings = {
   email: { orders: true, promotions: false, reviews: true, messages: true },
-  push: { orders: true, promotions: false, reviews: false, messages: true },
   sms: { orders: false, promotions: false, reviews: false, messages: false },
 };
 
@@ -130,38 +129,6 @@ export default function AccountNotificationsPage() {
                 <Switch
                   checked={settings.email[category.key as keyof typeof settings.email]}
                   onCheckedChange={() => handleToggle("email", category.key)}
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Push Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Push Notifications
-            </CardTitle>
-            <CardDescription>
-              Receive notifications in your browser
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notificationCategories.map((category) => (
-              <div
-                key={category.key}
-                className="flex items-center justify-between"
-              >
-                <div className="space-y-0.5">
-                  <Label>{category.title}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {category.description}
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.push[category.key as keyof typeof settings.push]}
-                  onCheckedChange={() => handleToggle("push", category.key)}
                 />
               </div>
             ))}

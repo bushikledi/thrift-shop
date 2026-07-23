@@ -25,7 +25,7 @@ export interface NotificationToggles {
   messages: boolean;
 }
 
-export type NotificationChannel = "email" | "push" | "sms";
+export type NotificationChannel = "email" | "sms";
 
 export interface UserPreferences {
   notifications: Record<NotificationChannel, NotificationToggles>;

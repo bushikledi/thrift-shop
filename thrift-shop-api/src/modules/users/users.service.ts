@@ -9,7 +9,6 @@ import { Prisma } from '../../generated/prisma/client';
 export interface ResolvedUserPreferences {
   notifications: {
     email: NotificationToggles;
-    push: NotificationToggles;
     sms: NotificationToggles;
   };
 }
@@ -25,7 +24,6 @@ interface NotificationToggles {
 export interface PartialUserPreferences {
   notifications?: {
     email?: Partial<NotificationToggles>;
-    push?: Partial<NotificationToggles>;
     sms?: Partial<NotificationToggles>;
   };
 }
@@ -246,7 +244,6 @@ export class UsersService {
   private static readonly DEFAULT_PREFERENCES: ResolvedUserPreferences = {
     notifications: {
       email: { orders: true, promotions: false, reviews: true, messages: true },
-      push: { orders: true, promotions: false, reviews: false, messages: true },
       sms: {
         orders: false,
         promotions: false,
@@ -295,7 +292,7 @@ export class UsersService {
     base: ResolvedUserPreferences,
     patch: PartialUserPreferences | null | undefined,
   ): ResolvedUserPreferences {
-    const channels = ['email', 'push', 'sms'] as const;
+    const channels = ['email', 'sms'] as const;
     const toggleKeys = ['orders', 'promotions', 'reviews', 'messages'] as const;
     const notifications = {} as ResolvedUserPreferences['notifications'];
 

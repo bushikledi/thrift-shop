@@ -50,7 +50,6 @@ describe('UsersService - notification preferences', () => {
       expect(result.notifications.email.promotions).toBe(true);
       // Not stored, so the default applies rather than undefined.
       expect(result.notifications.email.orders).toBe(true);
-      expect(result.notifications.push.messages).toBe(true);
     });
 
     it('throws when the user does not exist', async () => {
@@ -140,7 +139,7 @@ describe('UsersService - notification preferences', () => {
       >;
       const stored = updateCalls[0][0].data.preferences.notifications;
 
-      expect(Object.keys(stored).sort()).toEqual(['email', 'push', 'sms']);
+      expect(Object.keys(stored).sort()).toEqual(['email', 'sms']);
       expect(Object.keys(stored.email).sort()).toEqual([
         'messages',
         'orders',
