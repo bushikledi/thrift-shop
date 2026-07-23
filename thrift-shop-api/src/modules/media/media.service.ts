@@ -220,6 +220,9 @@ export class MediaService {
       data: {
         ownerType: dto.ownerType,
         ownerId: dto.ownerId,
+        // Only product media carries the concrete foreign key.
+        productId:
+          dto.ownerType === MediaOwnerType.PRODUCT ? dto.ownerId : null,
         url: uploadResult.url,
         filename: uploadResult.filename,
         mimeType: uploadResult.mimeType,
@@ -260,6 +263,9 @@ export class MediaService {
         data: {
           ownerType: dto.ownerType,
           ownerId: dto.ownerId,
+          // Only product media carries the concrete foreign key.
+          productId:
+            dto.ownerType === MediaOwnerType.PRODUCT ? dto.ownerId : null,
           url: uploadResult.url,
           filename: uploadResult.filename,
           mimeType: uploadResult.mimeType,
