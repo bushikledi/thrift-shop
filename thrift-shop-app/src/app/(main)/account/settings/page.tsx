@@ -4,10 +4,11 @@
  */
 "use client";
 
-import { useState } from "react";
 import { Globe, Moon, Sun, Languages } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+
+import { useLocaleStore, changeLocale, type Locale } from "@/lib/stores/locale-store";
+import { useThemeStore, type Theme } from "@/lib/stores/theme-store";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,21 +30,22 @@ import { toast } from "sonner";
 
 export default function AccountSettingsPage() {
   const t = useTranslations();
-  const router = useRouter();
-  const [language, setLanguage] = useState("en");
-  const [theme, setTheme] = useState("system");
+  const language = useLocaleStore((state) => state.locale);
+  const theme = useThemeStore((state) => state.theme);
+  const setTheme = useThemeStore((state) => state.setTheme);
 
+  // Switching locale sets the cookie next-intl reads and reloads, so the
+  // toast would be lost on the reload - the visible language change is the
+  // confirmation.
   const handleLanguageChange = (value: string) => {
-    setLanguage(value);
-    // TODO: Implement language change
-    router.refresh();
-    toast.success("Language preference saved");
+    if (value === language) return;
+    changeLocale(value as Locale);
   };
 
+  // Applied immediately by the theme store and persisted to localStorage.
   const handleThemeChange = (value: string) => {
-    setTheme(value);
-    // TODO: Implement theme change
-    toast.success("Theme preference saved");
+    setTheme(value as Theme);
+    toast.success("Theme updated");
   };
 
   return (

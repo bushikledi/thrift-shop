@@ -6,7 +6,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { usersApi } from "@/lib/api/users";
+import {
+  usersApi,
+  type PartialUserPreferences,
+} from "@/lib/api/users";
 import { queryKeys } from "./queryKeys";
 import type {
   UpdateUserDto,
@@ -289,6 +292,34 @@ export function useUpdateUserAddress() {
       // Also update profile cache
       queryClient.invalidateQueries({ queryKey: queryKeys.users.profile() });
       toast.success("Address updated successfully");
+    },
+  });
+}
+
+/**
+ * Notification preferences (server-side: the API decides what mail to send).
+ */
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: queryKeys.users.preferences(),
+    queryFn: () => usersApi.getPreferences(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: PartialUserPreferences) =>
+      usersApi.updatePreferences(data),
+    onSuccess: (preferences) => {
+      // The API returns the fully-resolved set, so seed the cache with it.
+      queryClient.setQueryData(queryKeys.users.preferences(), preferences);
+      toast.success("Notification preferences saved");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to save notification preferences");
     },
   });
 }

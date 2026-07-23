@@ -1,8 +1,34 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
-import { UpdateUserDto } from './dto';
+import { UpdateUserDto, UpdateUserPreferencesDto } from './dto';
+
 import { PAGINATION } from '../../common/constants';
 import { Prisma } from '../../generated/prisma/client';
+
+/** Preferences with every default filled in. */
+export interface ResolvedUserPreferences {
+  notifications: {
+    email: NotificationToggles;
+    push: NotificationToggles;
+    sms: NotificationToggles;
+  };
+}
+
+interface NotificationToggles {
+  orders: boolean;
+  promotions: boolean;
+  reviews: boolean;
+  messages: boolean;
+}
+
+/** Any subset of preferences, as sent by a client or read from stored JSON. */
+export interface PartialUserPreferences {
+  notifications?: {
+    email?: Partial<NotificationToggles>;
+    push?: Partial<NotificationToggles>;
+    sms?: Partial<NotificationToggles>;
+  };
+}
 
 @Injectable()
 export class UsersService {
@@ -211,5 +237,87 @@ export class UsersService {
     });
 
     return updatedUser.address;
+  }
+
+  /**
+   * Defaults applied when a user has never saved preferences. Order updates
+   * are opt-out; marketing is opt-in.
+   */
+  private static readonly DEFAULT_PREFERENCES: ResolvedUserPreferences = {
+    notifications: {
+      email: { orders: true, promotions: false, reviews: true, messages: true },
+      push: { orders: true, promotions: false, reviews: false, messages: true },
+      sms: {
+        orders: false,
+        promotions: false,
+        reviews: false,
+        messages: false,
+      },
+    },
+  };
+
+  async getPreferences(userId: string): Promise<ResolvedUserPreferences> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.mergePreferences(
+      UsersService.DEFAULT_PREFERENCES,
+      user.preferences as PartialUserPreferences | null,
+    );
+  }
+
+  /**
+   * Partial update: only the channels/categories present in the payload change,
+   * so a client can toggle one switch without resending everything.
+   */
+  async updatePreferences(
+    userId: string,
+    dto: UpdateUserPreferencesDto,
+  ): Promise<ResolvedUserPreferences> {
+    const current = await this.getPreferences(userId);
+    const merged = this.mergePreferences(current, dto);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferences: merged as unknown as Prisma.InputJsonObject },
+    });
+
+    return merged;
+  }
+
+  private mergePreferences(
+    base: ResolvedUserPreferences,
+    patch: PartialUserPreferences | null | undefined,
+  ): ResolvedUserPreferences {
+    const channels = ['email', 'push', 'sms'] as const;
+    const toggleKeys = ['orders', 'promotions', 'reviews', 'messages'] as const;
+    const notifications = {} as ResolvedUserPreferences['notifications'];
+
+    for (const channel of channels) {
+      const merged = { ...base.notifications[channel] };
+      const overrides = patch?.notifications?.[channel];
+
+      // Copy only the keys the caller actually set. class-transformer builds
+      // the DTO with every declared property present, so unset ones arrive as
+      // undefined - a plain spread would overwrite stored values with them.
+      if (overrides) {
+        for (const key of toggleKeys) {
+          const value = overrides[key];
+          if (typeof value === 'boolean') {
+            merged[key] = value;
+          }
+        }
+      }
+
+      notifications[channel] = merged;
+    }
+
+    return { notifications };
   }
 }

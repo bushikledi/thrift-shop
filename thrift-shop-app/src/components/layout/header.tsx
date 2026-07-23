@@ -31,6 +31,7 @@ import {
   useLocaleStore,
   useUIStore,
 } from "@/lib/stores";
+import { changeLocale } from "@/lib/stores/locale-store";
 
 export function Header() {
   const t = useTranslations();
@@ -38,7 +39,7 @@ export function Header() {
 
   const { user, isAuthenticated, logout } = useAuthStore();
   const { items } = useCartStore();
-  const { locale, setLocale } = useLocaleStore();
+  const { locale } = useLocaleStore();
   const { toggleCart, toggleSearch } = useUIStore();
 
   const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -60,12 +61,7 @@ export function Header() {
   };
 
   const toggleLocale = () => {
-    setLocale(locale === "en" ? "sq" : "en");
-    // Set cookie and reload to apply new locale
-    document.cookie = `locale=${
-      locale === "en" ? "sq" : "en"
-    }; path=/; max-age=31536000`;
-    window.location.reload();
+    changeLocale(locale === "en" ? "sq" : "en");
   };
 
   const navLinks = [

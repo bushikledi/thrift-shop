@@ -62,6 +62,7 @@ export type UserCountAggregateOutputType = {
   isActive: number
   emailVerified: number
   address: number
+  preferences: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -107,6 +108,7 @@ export type UserCountAggregateInputType = {
   isActive?: true
   emailVerified?: true
   address?: true
+  preferences?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -195,6 +197,7 @@ export type UserGroupByOutputType = {
   isActive: boolean
   emailVerified: boolean
   address: runtime.JsonValue | null
+  preferences: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
   _count: UserCountAggregateOutputType | null
@@ -231,6 +234,7 @@ export type UserWhereInput = {
   isActive?: Prisma.BoolFilter<"User"> | boolean
   emailVerified?: Prisma.BoolFilter<"User"> | boolean
   address?: Prisma.JsonNullableFilter<"User">
+  preferences?: Prisma.JsonNullableFilter<"User">
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   vendor?: Prisma.XOR<Prisma.VendorNullableScalarRelationFilter, Prisma.VendorWhereInput> | null
@@ -250,6 +254,7 @@ export type UserOrderByWithRelationInput = {
   isActive?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   address?: Prisma.SortOrderInput | Prisma.SortOrder
+  preferences?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   vendor?: Prisma.VendorOrderByWithRelationInput
@@ -272,6 +277,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   isActive?: Prisma.BoolFilter<"User"> | boolean
   emailVerified?: Prisma.BoolFilter<"User"> | boolean
   address?: Prisma.JsonNullableFilter<"User">
+  preferences?: Prisma.JsonNullableFilter<"User">
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   vendor?: Prisma.XOR<Prisma.VendorNullableScalarRelationFilter, Prisma.VendorWhereInput> | null
@@ -291,6 +297,7 @@ export type UserOrderByWithAggregationInput = {
   isActive?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   address?: Prisma.SortOrderInput | Prisma.SortOrder
+  preferences?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
@@ -312,6 +319,7 @@ export type UserScalarWhereWithAggregatesInput = {
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   emailVerified?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   address?: Prisma.JsonNullableWithAggregatesFilter<"User">
+  preferences?: Prisma.JsonNullableWithAggregatesFilter<"User">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
@@ -327,6 +335,7 @@ export type UserCreateInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorCreateNestedOneWithoutUserInput
@@ -346,6 +355,7 @@ export type UserUncheckedCreateInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorUncheckedCreateNestedOneWithoutUserInput
@@ -365,6 +375,7 @@ export type UserUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUpdateOneWithoutUserNestedInput
@@ -384,6 +395,7 @@ export type UserUncheckedUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUncheckedUpdateOneWithoutUserNestedInput
@@ -403,6 +415,7 @@ export type UserCreateManyInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -418,6 +431,7 @@ export type UserUpdateManyMutationInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -433,6 +447,7 @@ export type UserUncheckedUpdateManyInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -448,6 +463,7 @@ export type UserCountOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   address?: Prisma.SortOrder
+  preferences?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -579,6 +595,7 @@ export type UserCreateWithoutVendorInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   orders?: Prisma.OrderCreateNestedManyWithoutBuyerInput
@@ -597,6 +614,7 @@ export type UserUncheckedCreateWithoutVendorInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   orders?: Prisma.OrderUncheckedCreateNestedManyWithoutBuyerInput
@@ -631,6 +649,7 @@ export type UserUpdateWithoutVendorInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUpdateManyWithoutBuyerNestedInput
@@ -649,6 +668,7 @@ export type UserUncheckedUpdateWithoutVendorInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   orders?: Prisma.OrderUncheckedUpdateManyWithoutBuyerNestedInput
@@ -667,6 +687,7 @@ export type UserCreateWithoutOrdersInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorCreateNestedOneWithoutUserInput
@@ -685,6 +706,7 @@ export type UserUncheckedCreateWithoutOrdersInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorUncheckedCreateNestedOneWithoutUserInput
@@ -719,6 +741,7 @@ export type UserUpdateWithoutOrdersInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUpdateOneWithoutUserNestedInput
@@ -737,6 +760,7 @@ export type UserUncheckedUpdateWithoutOrdersInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUncheckedUpdateOneWithoutUserNestedInput
@@ -755,6 +779,7 @@ export type UserCreateWithoutReviewsInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorCreateNestedOneWithoutUserInput
@@ -773,6 +798,7 @@ export type UserUncheckedCreateWithoutReviewsInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorUncheckedCreateNestedOneWithoutUserInput
@@ -807,6 +833,7 @@ export type UserUpdateWithoutReviewsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUpdateOneWithoutUserNestedInput
@@ -825,6 +852,7 @@ export type UserUncheckedUpdateWithoutReviewsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUncheckedUpdateOneWithoutUserNestedInput
@@ -843,6 +871,7 @@ export type UserCreateWithoutSavedItemsInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorCreateNestedOneWithoutUserInput
@@ -861,6 +890,7 @@ export type UserUncheckedCreateWithoutSavedItemsInput = {
   isActive?: boolean
   emailVerified?: boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   vendor?: Prisma.VendorUncheckedCreateNestedOneWithoutUserInput
@@ -895,6 +925,7 @@ export type UserUpdateWithoutSavedItemsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUpdateOneWithoutUserNestedInput
@@ -913,6 +944,7 @@ export type UserUncheckedUpdateWithoutSavedItemsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   address?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  preferences?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   vendor?: Prisma.VendorUncheckedUpdateOneWithoutUserNestedInput
@@ -980,6 +1012,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   isActive?: boolean
   emailVerified?: boolean
   address?: boolean
+  preferences?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   vendor?: boolean | Prisma.User$vendorArgs<ExtArgs>
@@ -1000,6 +1033,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   isActive?: boolean
   emailVerified?: boolean
   address?: boolean
+  preferences?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -1015,6 +1049,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   isActive?: boolean
   emailVerified?: boolean
   address?: boolean
+  preferences?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -1030,11 +1065,12 @@ export type UserSelectScalar = {
   isActive?: boolean
   emailVerified?: boolean
   address?: boolean
+  preferences?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "name" | "phone" | "avatar" | "role" | "isActive" | "emailVerified" | "address" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "name" | "phone" | "avatar" | "role" | "isActive" | "emailVerified" | "address" | "preferences" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   vendor?: boolean | Prisma.User$vendorArgs<ExtArgs>
   orders?: boolean | Prisma.User$ordersArgs<ExtArgs>
@@ -1064,6 +1100,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     isActive: boolean
     emailVerified: boolean
     address: runtime.JsonValue | null
+    preferences: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["user"]>
@@ -1503,6 +1540,7 @@ export interface UserFieldRefs {
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
   readonly emailVerified: Prisma.FieldRef<"User", 'Boolean'>
   readonly address: Prisma.FieldRef<"User", 'Json'>
+  readonly preferences: Prisma.FieldRef<"User", 'Json'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }

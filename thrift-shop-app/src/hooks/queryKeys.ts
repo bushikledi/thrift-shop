@@ -18,6 +18,7 @@ export const queryKeys = {
     orders: (params?: { page?: number; limit?: number }) =>
       [...queryKeys.users.all, "orders", params] as const,
     address: () => [...queryKeys.users.all, "address"] as const,
+    preferences: () => [...queryKeys.users.all, "preferences"] as const,
   },
 
   // Products
