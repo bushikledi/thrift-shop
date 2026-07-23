@@ -14,13 +14,29 @@ interface CartItem {
   vendorId: string;
 }
 
+/** Shape of the cart returned by the API, as consumed by this store. */
+interface ApiCartItem {
+  productId: string;
+  quantity: number;
+  product: {
+    title: string;
+    price: number | string;
+    vendorId?: string;
+    media?: { url: string }[] | null;
+  };
+}
+
+interface ApiCart {
+  items?: ApiCartItem[];
+}
+
 interface CartState {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  setCartFromApi: (cart: any) => void; // Sync from API cart response
+  setCartFromApi: (cart: ApiCart | null | undefined) => void; // Sync from API cart response
   totalPrice: () => number;
   itemCount: () => number;
 }
@@ -64,7 +80,7 @@ export const useCartStore = create<CartState>()(
           return;
         }
         // Convert API cart items to store format
-        const storeItems: CartItem[] = cart.items.map((item: any) => {
+        const storeItems: CartItem[] = cart.items.map((item: ApiCartItem) => {
           const productPrice = typeof item.product.price === 'string'
             ? parseFloat(item.product.price)
             : item.product.price;
@@ -75,7 +91,7 @@ export const useCartStore = create<CartState>()(
             price: productPrice,
             quantity: item.quantity,
             image: item.product.media?.[0]?.url,
-            vendorId: item.product.vendorId,
+            vendorId: item.product.vendorId ?? "",
           };
         });
         set({ items: storeItems });

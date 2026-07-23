@@ -225,6 +225,7 @@ export default function CheckoutPage() {
         setValue("state", userAddress.state || "");
         setValue("zipCode", userAddress.zip || "");
         setValue("country", userAddress.country || "US");
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time flag sync when prefilling the saved address
         setUsingSavedAddress(true);
       } else if (authUser) {
         // If no saved address but user is logged in, at least fill name and email
@@ -292,7 +293,20 @@ export default function CheckoutPage() {
       }
 
       // Include guest info if user is not authenticated
-      const checkoutData: any = {
+      const checkoutData: {
+        shippingAddress: {
+          street: string;
+          city: string;
+          state: string;
+          zip: string;
+          country: string;
+        };
+        paymentMethod: "COD" | "STRIPE";
+        shippingMethod: string;
+        customerNotes?: string;
+        cartSessionId: string;
+        guestInfo?: { name: string; email: string; phone: string };
+      } = {
         shippingAddress: {
           street: data.address + (data.apartment ? `, ${data.apartment}` : ""),
           city: data.city,
@@ -1155,7 +1169,8 @@ export default function CheckoutPage() {
                                   <span className="font-medium">
                                     {fieldLabel}:
                                   </span>{" "}
-                                  {(error as any)?.message || "Invalid"}
+                                  {(error as { message?: string })?.message ||
+                                    "Invalid"}
                                 </span>
                               </li>
                             );
