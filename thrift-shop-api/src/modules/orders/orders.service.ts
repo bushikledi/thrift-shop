@@ -21,8 +21,13 @@ import {
   GuestInfo,
   ShippingAddress,
 } from './dto';
-import { OrderStatus, Prisma } from '../../generated/prisma/client';
+import {
+  OrderStatus,
+  PaymentMethod,
+  Prisma,
+} from '../../generated/prisma/client';
 import { OrdersRepository } from './orders.repository';
+import { PaymentsService } from '../payments/payments.service';
 
 interface ShippingConfig {
   baseRate: number;
@@ -62,6 +67,7 @@ export class OrdersService {
     private eventEmitter: EventEmitter2,
     private orderNumberService: OrderNumberService,
     private configService: ConfigService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -272,7 +278,53 @@ export class OrdersService {
       });
     }
 
-    return orders;
+    // Card checkout: hand the buyer off to Stripe's hosted page. Orders stay
+    // PENDING/unpaid until the webhook confirms payment.
+    let payment: { checkoutUrl: string } | null = null;
+    if (dto.paymentMethod === PaymentMethod.STRIPE) {
+      const buyerEmail = await this.resolveBuyerEmail(userId, dto);
+      const session = await this.paymentsService.createCheckoutSession(
+        orders.map((o) => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          total: o.total,
+          vendorId: o.vendorId,
+        })),
+        {
+          customerEmail: buyerEmail || undefined,
+          successUrl: this.buildAppUrl(
+            `/orders/${orders[0].id}?payment=success`,
+          ),
+          cancelUrl: this.buildAppUrl('/checkout?payment=cancelled'),
+        },
+      );
+      payment = { checkoutUrl: session.url };
+    }
+
+    return { orders, payment };
+  }
+
+  /** Frontend URL used for Stripe success/cancel redirects. */
+  private buildAppUrl(path: string): string {
+    const base =
+      this.configService.get<string>('app.frontendUrl') ||
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:3001';
+    return `${base.replace(/\/$/, '')}${path}`;
+  }
+
+  private async resolveBuyerEmail(
+    userId: string | undefined,
+    dto: CreateOrderDto,
+  ): Promise<string | null> {
+    if (userId) {
+      const buyer = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      return buyer?.email ?? null;
+    }
+    return dto.guestInfo?.email ?? null;
   }
 
   /**

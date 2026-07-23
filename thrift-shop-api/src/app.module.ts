@@ -12,6 +12,7 @@ import {
   s3Config,
   redisConfig,
   shippingConfig,
+  stripeConfig,
 } from './config';
 import { validate } from './config/env.validation';
 import { CorrelationIdMiddleware } from './common/middleware';
@@ -25,6 +26,7 @@ import { CategoriesModule } from './modules/categories';
 import { ProductsModule } from './modules/products';
 import { CartModule } from './modules/cart';
 import { OrdersModule } from './modules/orders';
+import { PaymentsModule } from './modules/payments';
 import { MediaModule } from './modules/media';
 import { NotificationsModule } from './modules/notifications';
 import { ReviewsModule } from './modules/reviews';
@@ -44,6 +46,7 @@ import { HealthModule } from './modules/health';
         s3Config,
         redisConfig,
         shippingConfig,
+        stripeConfig,
       ],
       validate,
       cache: true,
@@ -98,6 +101,7 @@ import { HealthModule } from './modules/health';
     ProductsModule,
     CartModule,
     OrdersModule,
+    PaymentsModule,
     MediaModule,
     NotificationsModule,
     ReviewsModule,

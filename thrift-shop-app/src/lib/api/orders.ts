@@ -33,12 +33,21 @@ export interface OrderTrackingResponse {
   items: { title: string; quantity: number; price: number }[];
 }
 
+/**
+ * Checkout result. For card payments the API returns a Stripe Checkout URL to
+ * redirect to; cash-on-delivery orders come back with `payment: null`.
+ */
+export interface CheckoutResponse {
+  orders: OrderResponseDto[];
+  payment: { checkoutUrl: string } | null;
+}
+
 export const ordersApi = {
   /**
    * Create order (supports guest checkout)
    */
-  checkout: (data: CreateOrderDto): Promise<OrderResponseDto[]> =>
-    post<OrderResponseDto[], CreateOrderDto>("/orders/checkout", data),
+  checkout: (data: CreateOrderDto): Promise<CheckoutResponse> =>
+    post<CheckoutResponse, CreateOrderDto>("/orders/checkout", data),
 
   /**
    * Track an order.

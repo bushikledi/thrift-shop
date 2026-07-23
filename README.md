@@ -249,6 +249,50 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs:
 
 ---
 
+## Payments
+
+Two payment methods are supported:
+
+| Method | Behaviour |
+| ------ | --------- |
+| **Cash on delivery** (default) | Order is created immediately with `paymentStatus: PENDING`. No payment processing. |
+| **Card (Stripe)** | Order is created, then the buyer is redirected to Stripe's hosted Checkout page. The order is confirmed only when Stripe's webhook reports payment. |
+
+Card details are entered on Stripe's page and never reach this application — no
+card data is collected, transmitted, or stored here. Only Stripe identifiers
+(session and payment-intent ids) are persisted.
+
+**Stripe is optional.** With no `STRIPE_SECRET_KEY` set, the platform runs in
+cash-on-delivery-only mode and card checkout returns a clear "card payments are
+not available" error instead of failing at startup.
+
+### Enabling Stripe locally (test mode)
+
+```bash
+# 1. Add your test keys (https://dashboard.stripe.com/test/apikeys) to .env
+STRIPE_SECRET_KEY=sk_test_...
+
+# 2. Forward webhooks to the API and copy the printed whsec_... into .env
+stripe listen --forward-to localhost:3000/api/v1/payments/webhook
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Then check out with `Card` and use a Stripe test card:
+
+| Card number | Result |
+| ----------- | ------ |
+| `4242 4242 4242 4242` | Payment succeeds |
+| `4000 0000 0000 9995` | Payment declined (insufficient funds) |
+| `4000 0025 0000 3155` | Requires 3D Secure authentication |
+
+Use any future expiry, any CVC, and any postal code.
+
+The webhook is signature-verified: requests without a valid `stripe-signature`
+computed from `STRIPE_WEBHOOK_SECRET` are rejected, and repeated deliveries of
+the same event are idempotent.
+
+---
+
 ## API Documentation
 
 Swagger UI is available at: `http://localhost:3000/api/docs`

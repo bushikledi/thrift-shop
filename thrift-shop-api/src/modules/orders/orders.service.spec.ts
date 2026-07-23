@@ -6,6 +6,7 @@ import { OrdersRepository } from './orders.repository';
 import { PrismaService } from '../../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrderNumberService } from '../../common/utils';
+import { PaymentsService } from '../payments/payments.service';
 import {
   NotFoundException,
   BadRequestException,
@@ -156,6 +157,15 @@ describe('OrdersService', () => {
     isValidFormat: jest.fn().mockReturnValue(true),
   };
 
+  // Mock PaymentsService (Stripe is not exercised for cash-on-delivery orders)
+  const mockPaymentsService = {
+    isEnabled: true,
+    createCheckoutSession: jest.fn().mockResolvedValue({
+      sessionId: 'cs_test_123',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+    }),
+  };
+
   const mockConfigService = {
     get: jest.fn((key: string) => {
       if (key === 'shipping') {
@@ -182,6 +192,7 @@ describe('OrdersService', () => {
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: OrderNumberService, useValue: mockOrderNumberService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: PaymentsService, useValue: mockPaymentsService },
       ],
     }).compile();
 
@@ -360,6 +371,65 @@ describe('OrdersService', () => {
 
       expect(result).toBeDefined();
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
+    });
+
+    it('should not create a Stripe session for cash-on-delivery orders', async () => {
+      mockPrismaService.cartSession.findUnique.mockResolvedValue(mockCart);
+      mockPrismaService.$transaction.mockImplementation(
+        (callback: (tx: any) => Promise<any>) => {
+          const mockTx = {
+            order: { create: jest.fn().mockResolvedValue(mockOrder) },
+            product: { update: jest.fn().mockResolvedValue({}) },
+            cartItem: { deleteMany: jest.fn().mockResolvedValue({}) },
+          };
+          return callback(mockTx);
+        },
+      );
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.com',
+      });
+
+      const result = await service.create(
+        { ...createOrderDto, paymentMethod: PaymentMethod.COD },
+        'user-1',
+      );
+
+      expect(result.payment).toBeNull();
+      expect(mockPaymentsService.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('should create a Stripe checkout session for card orders', async () => {
+      mockPrismaService.cartSession.findUnique.mockResolvedValue(mockCart);
+      mockPrismaService.$transaction.mockImplementation(
+        (callback: (tx: any) => Promise<any>) => {
+          const mockTx = {
+            order: { create: jest.fn().mockResolvedValue(mockOrder) },
+            product: { update: jest.fn().mockResolvedValue({}) },
+            cartItem: { deleteMany: jest.fn().mockResolvedValue({}) },
+          };
+          return callback(mockTx);
+        },
+      );
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.com',
+      });
+
+      const result = await service.create(
+        { ...createOrderDto, paymentMethod: PaymentMethod.STRIPE },
+        'user-1',
+      );
+
+      expect(mockPaymentsService.createCheckoutSession).toHaveBeenCalled();
+      expect(result.payment?.checkoutUrl).toBe(
+        'https://checkout.stripe.com/c/pay/cs_test_123',
+      );
+
+      // The amount must come from the persisted order, never from the client.
+      const firstCall = mockPaymentsService.createCheckoutSession.mock
+        .calls[0] as [Array<{ total: number }>, unknown];
+      expect(firstCall[0][0].total).toBe(mockOrder.total);
     });
   });
 

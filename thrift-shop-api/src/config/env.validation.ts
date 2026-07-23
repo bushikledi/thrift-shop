@@ -106,6 +106,20 @@ export class EnvironmentVariables {
   @IsOptional()
   APP_URL?: string;
 
+  // Stripe (optional). Without STRIPE_SECRET_KEY the platform runs
+  // cash-on-delivery only and card checkout is rejected with a clear error.
+  @IsString()
+  @IsOptional()
+  STRIPE_SECRET_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  STRIPE_WEBHOOK_SECRET?: string;
+
+  @IsString()
+  @IsOptional()
+  STRIPE_CURRENCY?: string;
+
   // Rate Limiting
   @IsNumber()
   @IsOptional()

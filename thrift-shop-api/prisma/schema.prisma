@@ -342,6 +342,11 @@ model Order {
   status         OrderStatus   @default(PENDING)
   paymentMethod  PaymentMethod @default(COD) @map("payment_method")
   paymentStatus  PaymentStatus @default(PENDING) @map("payment_status")
+
+  // Stripe references. Only identifiers are stored - never card data. A single
+  // checkout can span several vendor orders, so these are not unique.
+  stripeSessionId       String? @map("stripe_session_id")
+  stripePaymentIntentId String? @map("stripe_payment_intent_id")
   
   // Notes
   customerNotes  String?       @map("customer_notes")
@@ -365,6 +370,7 @@ model Order {
   @@index([buyerId, status, createdAt(sort: Desc)])
   @@index([vendorId, status, createdAt(sort: Desc)])
   @@index([orderNumber])
+  @@index([stripeSessionId])
   
   @@map("orders")
 }

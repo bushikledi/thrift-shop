@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ordersApi } from "@/lib/api/orders";
+import { ordersApi, type CheckoutResponse } from "@/lib/api/orders";
 import { usersApi } from "@/lib/api/users";
 import { queryKeys } from "./queryKeys";
 import type {
@@ -27,7 +27,7 @@ export function useCheckout() {
 
   return useMutation({
     mutationFn: (data: CreateOrderDto) => ordersApi.checkout(data),
-    onSuccess: (orders: OrderResponseDto[]) => {
+    onSuccess: ({ orders, payment }: CheckoutResponse) => {
       // Clear cart after successful checkout
       queryClient.setQueryData(queryKeys.cart.current(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
@@ -35,6 +35,14 @@ export function useCheckout() {
       // Invalidate orders
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.orders() });
+
+      // Card payment: hand off to Stripe's hosted checkout. The order stays
+      // unpaid until Stripe's webhook confirms it, so don't claim success yet.
+      if (payment?.checkoutUrl) {
+        toast.info("Redirecting to secure payment...");
+        window.location.href = payment.checkoutUrl;
+        return;
+      }
 
       toast.success("Order placed successfully!");
 
