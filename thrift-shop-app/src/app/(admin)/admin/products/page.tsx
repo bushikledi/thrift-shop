@@ -64,6 +64,9 @@ import {
   useAdminProducts,
   useAdminToggleProductFeatured,
   useAdminToggleProductActive,
+  useAdminFlagProduct,
+  useAdminUnflagProduct,
+  useAdminDeleteProduct,
 } from "@/hooks/useAdmin";
 import { useCategories } from "@/hooks/useCategories";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -129,6 +132,9 @@ export default function AdminProductsPage() {
 
   const toggleFeaturedMutation = useAdminToggleProductFeatured();
   const toggleActiveMutation = useAdminToggleProductActive();
+  const flagProductMutation = useAdminFlagProduct();
+  const unflagProductMutation = useAdminUnflagProduct();
+  const deleteProductMutation = useAdminDeleteProduct();
 
   const products = Array.isArray(data)
     ? data
@@ -196,12 +202,15 @@ export default function AdminProductsPage() {
     if (!flagProduct || !flagReason.trim()) return;
 
     try {
-      // This would call an API to flag the product
-      toast.success("Product flagged for review");
+      await flagProductMutation.mutateAsync({
+        id: flagProduct.id,
+        reason: flagReason.trim(),
+      });
       setFlagProduct(null);
       setFlagReason("");
     } catch {
-      toast.error("Failed to flag product");
+      // The mutation surfaces the error; keep the dialog open so the admin
+      // can retry without retyping the reason.
     }
   };
 
@@ -209,11 +218,11 @@ export default function AdminProductsPage() {
     if (!deleteProduct) return;
 
     try {
-      // This would call an API to delete the product
-      toast.success("Product deleted");
+      await deleteProductMutation.mutateAsync(deleteProduct.id);
       setDeleteProduct(null);
     } catch {
-      toast.error("Failed to delete product");
+      // Deleting a product that appears in orders fails with 409; the error
+      // toast explains it, so leave the dialog open.
     }
   };
 
@@ -466,12 +475,24 @@ export default function AdminProductsPage() {
                               </>
                             )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setFlagProduct(product)}
-                          >
-                            <Flag className="mr-2 h-4 w-4" />
-                            Flag for Review
-                          </DropdownMenuItem>
+                          {(product as { flaggedAt?: string | null })
+                            .flaggedAt ? (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                unflagProductMutation.mutate(product.id)
+                              }
+                            >
+                              <Flag className="mr-2 h-4 w-4" />
+                              Clear Flag &amp; Restore
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => setFlagProduct(product)}
+                            >
+                              <Flag className="mr-2 h-4 w-4" />
+                              Flag for Review
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"

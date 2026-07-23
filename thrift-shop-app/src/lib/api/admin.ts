@@ -158,6 +158,18 @@ export const adminApi = {
     data: UpdatePlatformSettings
   ): Promise<PlatformSettings> =>
     put<PlatformSettings, UpdatePlatformSettings>("/admin/settings", data),
+
+  /**
+   * Product moderation
+   */
+  flagProduct: (id: string, reason: string): Promise<unknown> =>
+    post<unknown, { reason: string }>(`/admin/products/${id}/flag`, { reason }),
+
+  unflagProduct: (id: string): Promise<unknown> =>
+    post<unknown, undefined>(`/admin/products/${id}/unflag`, undefined),
+
+  deleteProduct: (id: string): Promise<{ message: string }> =>
+    del<{ message: string }>(`/admin/products/${id}`),
 };
 
 export default adminApi;

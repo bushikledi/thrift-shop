@@ -31,6 +31,7 @@ import {
   AdminStatsResponseDto,
   AuditLogResponseDto,
   AdminReviewResponseDto,
+  FlagProductDto,
   UpdatePlatformSettingsDto,
   PlatformSettingsResponseDto,
 } from './dto';
@@ -313,6 +314,53 @@ export class AdminController {
     @Query('limit') limit?: number,
   ) {
     return this.adminService.getAuditLogs(page || 1, limit || 50);
+  }
+
+  @Post('products/:id/flag')
+  @ApiOperation({
+    summary: 'Flag a product for review',
+    description: 'Records the reason and deactivates the listing.',
+  })
+  @ApiResponse({ status: 201, description: 'Product flagged' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async flagProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FlagProductDto,
+  ) {
+    return this.adminService.flagProduct(id, dto.reason);
+  }
+
+  @Post('products/:id/unflag')
+  @ApiOperation({
+    summary: 'Clear a product flag',
+    description: 'Removes the flag and restores the listing.',
+  })
+  @ApiResponse({ status: 201, description: 'Flag cleared' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async unflagProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.unflagProduct(id);
+  }
+
+  @Delete('products/:id')
+  @ApiOperation({
+    summary: 'Delete a product',
+    description:
+      'Rejected with 409 when the product appears in existing orders, since ' +
+      'deleting it would destroy purchase history.',
+  })
+  @ApiResponse({ status: 200, description: 'Product deleted' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.deleteProduct(id);
   }
 
   // ---------------------------------------------------------------------------

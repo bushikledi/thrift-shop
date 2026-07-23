@@ -335,3 +335,53 @@ export function useUpdateAdminSettings() {
     },
   });
 }
+
+/**
+ * Product moderation (admin only).
+ */
+export function useAdminFlagProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminApi.flagProduct(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Product flagged and hidden from the storefront");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to flag product");
+    },
+  });
+}
+
+export function useAdminUnflagProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.unflagProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Flag cleared and product restored");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to clear flag");
+    },
+  });
+}
+
+export function useAdminDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Product deleted");
+    },
+    onError: (error: ApiError) => {
+      // A 409 here means the product is referenced by existing orders.
+      toast.error(error.message || "Failed to delete product");
+    },
+  });
+}

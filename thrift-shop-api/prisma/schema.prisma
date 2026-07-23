@@ -204,6 +204,10 @@ model Product {
   isActive     Boolean          @default(true) @map("is_active")
   isFeatured   Boolean          @default(false) @map("is_featured")
   viewCount    Int              @default(0) @map("view_count")
+
+  // Moderation: set when an admin flags the listing for review.
+  flaggedAt    DateTime?        @map("flagged_at")
+  flagReason   String?          @map("flag_reason")
   
   // Relations
   vendor       Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
@@ -229,7 +233,8 @@ model Product {
   @@index([categoryId, isActive, createdAt(sort: Desc)])
   @@index([categoryId, isActive, price])
   @@index([isActive, price])
-  
+  @@index([flaggedAt])
+
   @@map("products")
 }
 

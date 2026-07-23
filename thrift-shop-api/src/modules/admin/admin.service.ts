@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma';
 import {
   AdminUserQueryDto,
@@ -564,5 +568,68 @@ export class AdminService {
       create: { id: AdminService.SETTINGS_ID, ...dto },
       update: dto,
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Product moderation
+  // ---------------------------------------------------------------------------
+
+  /** Flags a listing for review and takes it out of the storefront. */
+  async flagProduct(id: string, reason: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        flaggedAt: new Date(),
+        flagReason: reason,
+        // A flagged listing should not stay visible while it is reviewed.
+        isActive: false,
+      },
+    });
+  }
+
+  /** Clears a flag and restores the listing. */
+  async unflagProduct(id: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: { flaggedAt: null, flagReason: null, isActive: true },
+    });
+  }
+
+  /**
+   * Permanently removes a listing.
+   *
+   * Order items reference products to preserve purchase history, so a product
+   * that has been ordered cannot be deleted without destroying that history.
+   * Those are rejected with a clear message pointing at deactivation instead.
+   */
+  async deleteProduct(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      select: { id: true, _count: { select: { orderItems: true } } },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (product._count.orderItems > 0) {
+      throw new ConflictException(
+        'This product appears in existing orders and cannot be deleted. Deactivate it instead.',
+      );
+    }
+
+    await this.prisma.product.delete({ where: { id } });
+
+    return { message: 'Product deleted successfully' };
   }
 }
