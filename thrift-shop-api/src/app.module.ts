@@ -28,6 +28,7 @@ import { ProductsModule } from './modules/products';
 import { CartModule } from './modules/cart';
 import { OrdersModule } from './modules/orders';
 import { PaymentsModule } from './modules/payments';
+import { PromoModule } from './modules/promo';
 import { MediaModule } from './modules/media';
 import { NotificationsModule } from './modules/notifications';
 import { ReviewsModule } from './modules/reviews';
@@ -103,6 +104,7 @@ import { HealthModule } from './modules/health';
     CartModule,
     OrdersModule,
     PaymentsModule,
+    PromoModule,
     MediaModule,
     NotificationsModule,
     ReviewsModule,

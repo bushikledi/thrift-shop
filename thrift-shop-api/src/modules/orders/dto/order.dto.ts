@@ -89,6 +89,14 @@ export class CreateOrderDto {
   @IsString()
   customerNotes?: string;
 
+  @ApiPropertyOptional({
+    description: 'Promo code to apply to the whole cart',
+    example: 'WELCOME10',
+  })
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
   @ApiProperty({ description: 'Cart session ID' })
   @IsString()
   cartSessionId!: string;

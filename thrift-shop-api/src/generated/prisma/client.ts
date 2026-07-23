@@ -109,3 +109,8 @@ export type AuditLog = Prisma.AuditLogModel
  * The fixed `id` keeps it a singleton so reads/writes are a simple upsert.
  */
 export type PlatformSettings = Prisma.PlatformSettingsModel
+/**
+ * Model PromoCode
+ * 
+ */
+export type PromoCode = Prisma.PromoCodeModel

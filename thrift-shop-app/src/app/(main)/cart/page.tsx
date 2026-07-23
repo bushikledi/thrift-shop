@@ -16,6 +16,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { promoApi, type PromoValidation } from "@/lib/api/promo";
+import { ApiError } from "@/lib/apiClient";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +51,10 @@ export default function CartPage() {
   const clearCart = useClearCart();
 
   const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<PromoValidation | null>(
+    null
+  );
+  const [isCheckingPromo, setIsCheckingPromo] = useState(false);
   const [clearCartOpen, setClearCartOpen] = useState(false);
 
   const cartItems = cart?.items || [];
@@ -59,7 +65,9 @@ export default function CartPage() {
       : cart?.subtotal || 0;
   const shipping = 0; // Shipping calculated at checkout
   const tax = 0; // Tax calculated at checkout
-  const total = subtotal; // Total calculated at checkout
+  const discount = appliedPromo?.discount ?? 0;
+  // Shipping and tax are still settled at checkout; this is the cart estimate.
+  const total = Math.max(0, subtotal - discount);
 
   const handleQuantityChange = (item: CartItemDto, delta: number) => {
     const newQuantity = item.quantity + delta;
@@ -111,13 +119,37 @@ export default function CartPage() {
     });
   };
 
-  const handleApplyPromo = () => {
-    if (!promoCode) {
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) {
       toast.error("Please enter a promo code");
       return;
     }
-    // TODO: Implement promo code API
-    toast.error("Invalid promo code");
+
+    setIsCheckingPromo(true);
+    try {
+      const result = await promoApi.validate(promoCode.trim(), subtotal);
+      setAppliedPromo(result);
+      toast.success(
+        result.description
+          ? `${result.code} applied - ${result.description}`
+          : `${result.code} applied`
+      );
+    } catch (error) {
+      setAppliedPromo(null);
+      // The API returns a specific reason (e.g. a minimum order) worth showing.
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "This promo code is not valid"
+      );
+    } finally {
+      setIsCheckingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode("");
   };
 
   if (isLoading) {
@@ -206,6 +238,7 @@ export default function CartPage() {
                   placeholder="Promo code"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
+                  disabled={!!appliedPromo || isCheckingPromo}
                   aria-label="Enter promo code"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -216,10 +249,17 @@ export default function CartPage() {
                 />
                 <Button
                   variant="secondary"
-                  onClick={handleApplyPromo}
-                  aria-label="Apply promo code"
+                  onClick={appliedPromo ? handleRemovePromo : handleApplyPromo}
+                  disabled={isCheckingPromo}
+                  aria-label={
+                    appliedPromo ? "Remove promo code" : "Apply promo code"
+                  }
                 >
-                  Apply
+                  {isCheckingPromo
+                    ? "Checking..."
+                    : appliedPromo
+                      ? "Remove"
+                      : "Apply"}
                 </Button>
               </div>
 
@@ -233,6 +273,16 @@ export default function CartPage() {
                   </span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
+                {appliedPromo && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Discount ({appliedPromo.code})
+                    </span>
+                    <span className="text-primary">
+                      -{formatCurrency(discount)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
                   <span>

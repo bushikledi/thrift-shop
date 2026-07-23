@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrderNumberService } from '../../common/utils';
 import { PaymentsService } from '../payments/payments.service';
+import { PromoService } from '../promo/promo.service';
 import {
   NotFoundException,
   BadRequestException,
@@ -157,6 +158,12 @@ describe('OrdersService', () => {
     isValidFormat: jest.fn().mockReturnValue(true),
   };
 
+  // Mock PromoService (no code is supplied unless a test sets one)
+  const mockPromoService = {
+    validate: jest.fn(),
+    recordRedemption: jest.fn().mockResolvedValue(undefined),
+  };
+
   // Mock PaymentsService (Stripe is not exercised for cash-on-delivery orders)
   const mockPaymentsService = {
     isEnabled: true,
@@ -193,6 +200,7 @@ describe('OrdersService', () => {
         { provide: OrderNumberService, useValue: mockOrderNumberService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PaymentsService, useValue: mockPaymentsService },
+        { provide: PromoService, useValue: mockPromoService },
       ],
     }).compile();
 
