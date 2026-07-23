@@ -16,6 +16,7 @@ import {
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { MEDIA } from '../../common/constants';
+import { matchesDeclaredImageType } from '../../common/utils';
 import {
   S3Client,
   PutObjectCommand,
@@ -141,6 +142,13 @@ export class MediaService {
     // Validate file size
     if (file.size > MEDIA.MAX_FILE_SIZE) {
       throw new BadRequestException('File too large. Maximum size: 10MB');
+    }
+
+    // The declared Content-Type can be forged, so verify the actual bytes.
+    if (!matchesDeclaredImageType(file.buffer, file.mimetype)) {
+      throw new BadRequestException(
+        'File content does not match its declared image type',
+      );
     }
 
     // Generate unique filename

@@ -39,6 +39,16 @@ export class EnvironmentVariables {
   @IsOptional()
   JWT_EXPIRES_IN: string = '7d';
 
+  // Key for encrypting sensitive stored values (vendor payout details).
+  // Optional: falls back to a key derived from JWT_SECRET. Prefer a dedicated
+  // 64-character hex value so it can be rotated independently.
+  @IsString()
+  @IsOptional()
+  @MinLength(32, {
+    message: 'ENCRYPTION_KEY must be at least 32 characters',
+  })
+  ENCRYPTION_KEY?: string;
+
   // Redis (optional for development)
   @IsString()
   @IsOptional()

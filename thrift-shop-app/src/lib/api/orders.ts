@@ -9,6 +9,30 @@ import type {
   PaginationParams,
 } from "@/types";
 
+/**
+ * Reduced order shape returned by the public tracking endpoint. Deliberately
+ * excludes contact details and the shipping address.
+ */
+export interface OrderTrackingResponse {
+  orderNumber: string;
+  status: OrderResponseDto["status"];
+  paymentStatus: OrderResponseDto["paymentStatus"];
+  paymentMethod: string;
+  shippingMethod: string | null;
+  trackingNumber: string | null;
+  subtotal: number;
+  shippingAmount: number;
+  discount: number;
+  total: number;
+  createdAt: string;
+  confirmedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  vendor: { displayName: string };
+  items: { title: string; quantity: number; price: number }[];
+}
+
 export const ordersApi = {
   /**
    * Create order (supports guest checkout)
@@ -17,10 +41,20 @@ export const ordersApi = {
     post<OrderResponseDto[], CreateOrderDto>("/orders/checkout", data),
 
   /**
-   * Track order by order number
+   * Track an order.
+   *
+   * Requires the email used to place the order as proof of ownership; sent in
+   * the body so it never appears in a URL or request log. Returns fulfilment
+   * status only (no contact details or shipping address).
    */
-  track: (orderNumber: string): Promise<OrderResponseDto> =>
-    get<OrderResponseDto>(`/orders/track/${orderNumber}`),
+  track: (
+    orderNumber: string,
+    email: string
+  ): Promise<OrderTrackingResponse> =>
+    post<OrderTrackingResponse, { orderNumber: string; email: string }>(
+      "/orders/track",
+      { orderNumber, email }
+    ),
 
   /**
    * Get order by ID

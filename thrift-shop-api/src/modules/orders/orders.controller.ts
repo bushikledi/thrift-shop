@@ -8,14 +8,14 @@ import {
   Query,
   UseGuards,
   Req,
-  BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiParam,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
@@ -24,16 +24,18 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, UpdateOrderStatusDto, OrderResponseDto } from './dto';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  OrderResponseDto,
+  TrackOrderDto,
+} from './dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { Public, Roles, CurrentUser } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
 import { UserRole, OrderStatus } from '../../generated/prisma/client';
 import { RequestWithUser } from '../../common/interfaces/request.interface';
 import { ErrorResponseDto } from '../../common/dto/error-response.dto';
-
-// Order number format validation regex: TS-YYYY-NNNNN
-const ORDER_NUMBER_REGEX = /^TS-\d{4}-\d{5}$/;
 
 @ApiTags('orders')
 @Controller('orders')
@@ -63,39 +65,33 @@ export class OrdersController {
   }
 
   @Public()
-  @Get('track/:orderNumber')
+  @Post('track')
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 tracking requests per minute per IP
-  @ApiOperation({ summary: 'Track order by order number' })
-  @ApiParam({
-    name: 'orderNumber',
-    description: 'Order number in format TS-YYYY-NNNNN (e.g., TS-2024-00001)',
-    example: 'TS-2024-00001',
+  @ApiOperation({
+    summary: 'Track an order',
+    description:
+      'Requires the order number and the email used to place the order. ' +
+      'Returns fulfilment status only — no contact details or shipping address.',
   })
   @ApiResponse({
     status: 200,
     description: 'Order tracking details',
-    type: OrderResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid order number format',
+    description: 'Invalid order number format or email',
     type: ErrorResponseDto,
   })
   @ApiNotFoundResponse({
-    description: 'Order not found',
+    description: 'Order not found or email does not match',
     type: ErrorResponseDto,
   })
   @ApiTooManyRequestsResponse({
     description: 'Rate limit exceeded',
     type: ErrorResponseDto,
   })
-  async trackOrder(@Param('orderNumber') orderNumber: string) {
-    // Validate order number format to prevent enumeration attacks
-    if (!ORDER_NUMBER_REGEX.test(orderNumber)) {
-      throw new BadRequestException(
-        'Invalid order number format. Expected format: TS-YYYY-NNNNN',
-      );
-    }
-    return this.ordersService.findByOrderNumber(orderNumber);
+  async trackOrder(@Body() dto: TrackOrderDto) {
+    return this.ordersService.trackByOrderNumber(dto.orderNumber, dto.email);
   }
 
   @Get(':id')

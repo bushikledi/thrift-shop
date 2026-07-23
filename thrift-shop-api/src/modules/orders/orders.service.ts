@@ -342,14 +342,59 @@ export class OrdersService {
     return order;
   }
 
-  async findByOrderNumber(orderNumber: string) {
-    const order = await this.ordersRepository.findByOrderNumber(orderNumber);
+  /**
+   * Guest order tracking.
+   *
+   * Order numbers are sequential and guessable, so the email used to place the
+   * order must match before anything is returned, and the response is limited
+   * to fulfilment status — no email, phone, or shipping address. A mismatch and
+   * a missing order both yield the same NotFoundException so the endpoint
+   * cannot be used to probe which order numbers exist.
+   */
+  async trackByOrderNumber(orderNumber: string, email: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      select: {
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        shippingMethod: true,
+        trackingNumber: true,
+        subtotal: true,
+        shippingAmount: true,
+        discount: true,
+        total: true,
+        createdAt: true,
+        confirmedAt: true,
+        shippedAt: true,
+        deliveredAt: true,
+        cancelledAt: true,
+        guestInfo: true,
+        buyer: { select: { email: true } },
+        vendor: { select: { displayName: true } },
+        items: {
+          select: { title: true, quantity: true, price: true },
+        },
+      },
+    });
 
-    if (!order) {
+    const provided = email.trim().toLowerCase();
+    const buyerEmail = order?.buyer?.email?.toLowerCase();
+    const guestEmail = (
+      order?.guestInfo as { email?: string } | null
+    )?.email?.toLowerCase();
+
+    if (!order || (provided !== buyerEmail && provided !== guestEmail)) {
       throw new NotFoundException('Order not found');
     }
 
-    return order;
+    // Strip the fields only used to verify ownership.
+    const { guestInfo: _guestInfo, buyer: _buyer, ...tracking } = order;
+    void _guestInfo;
+    void _buyer;
+
+    return tracking;
   }
 
   async getVendorOrders(

@@ -18,6 +18,7 @@ import { CorrelationIdMiddleware } from './common/middleware';
 
 // Feature modules
 import { AuthModule } from './modules/auth';
+import { JwtAuthGuard } from './modules/auth/guards';
 import { UsersModule } from './modules/users';
 import { VendorsModule } from './modules/vendors';
 import { CategoriesModule } from './modules/categories';
@@ -109,6 +110,13 @@ import { HealthModule } from './modules/health';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Authentication is enforced globally; routes intended to be reachable
+    // without a session opt out explicitly with @Public(). This makes an
+    // unguarded route fail closed rather than silently exposing data.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

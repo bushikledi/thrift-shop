@@ -53,64 +53,6 @@ export class VendorsController {
     return this.vendorsService.findAll(page || 1, limit || 20, verified);
   }
 
-  @Public()
-  @Get(':name')
-  @ApiOperation({ summary: 'Get vendor by name (slug)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vendor details',
-    type: VendorDetailDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Vendor not found',
-    type: ErrorResponseDto,
-  })
-  async findByName(@Param('name') name: string) {
-    return this.vendorsService.findByName(name);
-  }
-
-  @Public()
-  @Get(':name/products')
-  @ApiOperation({ summary: 'Get vendor products' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vendor products',
-    type: [ProductListItemDto],
-  })
-  @ApiNotFoundResponse({
-    description: 'Vendor not found',
-    type: ErrorResponseDto,
-  })
-  async getProducts(
-    @Param('name') name: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    const vendor = await this.vendorsService.findByName(name);
-    return this.vendorsService.getProducts(vendor.id, page || 1, limit || 20);
-  }
-
-  @Public()
-  @Get(':name/reviews')
-  @ApiOperation({ summary: 'Get vendor reviews' })
-  @ApiResponse({
-    status: 200,
-    description: 'Vendor reviews',
-    type: [ReviewSummaryDto],
-  })
-  @ApiNotFoundResponse({
-    description: 'Vendor not found',
-    type: ErrorResponseDto,
-  })
-  async getReviews(
-    @Param('name') name: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    const vendor = await this.vendorsService.findByName(name);
-    return this.vendorsService.getReviews(vendor.id, page || 1, limit || 10);
-  }
-
   @Get('me/profile')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR)
@@ -301,5 +243,72 @@ export class VendorsController {
       page || 1,
       limit || 10,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public storefront lookups by vendor slug.
+  //
+  // Declared last on purpose: Nest matches routes in declaration order, so
+  // ':name/products' and ':name/reviews' would otherwise shadow the concrete
+  // 'me/products' and 'me/reviews' routes above and resolve them as a vendor
+  // named "me".
+  // ---------------------------------------------------------------------------
+
+  @Public()
+  @Get(':name')
+  @ApiOperation({ summary: 'Get vendor by name (slug)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vendor details',
+    type: VendorDetailDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Vendor not found',
+    type: ErrorResponseDto,
+  })
+  async findByName(@Param('name') name: string) {
+    return this.vendorsService.findByName(name);
+  }
+
+  @Public()
+  @Get(':name/products')
+  @ApiOperation({ summary: 'Get vendor products' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vendor products',
+    type: [ProductListItemDto],
+  })
+  @ApiNotFoundResponse({
+    description: 'Vendor not found',
+    type: ErrorResponseDto,
+  })
+  async getProducts(
+    @Param('name') name: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const vendor = await this.vendorsService.findByName(name);
+    return this.vendorsService.getProducts(vendor.id, page || 1, limit || 20);
+  }
+
+  @Public()
+  @Get(':name/reviews')
+  @ApiOperation({ summary: 'Get vendor reviews' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vendor reviews',
+    type: [ReviewSummaryDto],
+  })
+  @ApiNotFoundResponse({
+    description: 'Vendor not found',
+    type: ErrorResponseDto,
+  })
+  async getReviews(
+    @Param('name') name: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const vendor = await this.vendorsService.findByName(name);
+    return this.vendorsService.getReviews(vendor.id, page || 1, limit || 10);
   }
 }

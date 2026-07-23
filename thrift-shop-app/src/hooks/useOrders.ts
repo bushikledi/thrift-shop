@@ -54,13 +54,18 @@ export function useCheckout() {
 }
 
 /**
- * Track order by order number
+ * Track an order. Both the order number and the email used to place it are
+ * required — order numbers alone are guessable, so the API verifies ownership.
  */
-export function useTrackOrder(orderNumber: string, enabled = true) {
+export function useTrackOrder(
+  orderNumber: string,
+  email: string,
+  enabled = true
+) {
   return useQuery({
     queryKey: queryKeys.orders.track(orderNumber),
-    queryFn: () => ordersApi.track(orderNumber),
-    enabled: !!orderNumber && enabled,
+    queryFn: () => ordersApi.track(orderNumber, email),
+    enabled: !!orderNumber && !!email && enabled,
     staleTime: 30 * 1000, // 30 seconds - tracking should be fresh
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.statusCode === 404) {
