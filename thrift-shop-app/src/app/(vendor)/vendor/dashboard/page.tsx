@@ -9,11 +9,8 @@ import {
   Package,
   ShoppingCart,
   DollarSign,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
   Clock,
-  Eye,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -25,8 +22,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatCurrency } from "@/lib/utils";
-import { useMyVendorProducts, useMyVendorOrders } from "@/hooks/useVendors";
+import { formatCurrency } from "@/lib/utils";
+import {
+  useMyVendorProducts,
+  useMyVendorOrders,
+  useMyVendorStats,
+} from "@/hooks/useVendors";
 import { LoadingSkeleton } from "@/components/shared";
 
 export default function VendorDashboardPage() {
@@ -38,6 +39,7 @@ export default function VendorDashboardPage() {
     page: 1,
     limit: 5,
   });
+  const { data: statsData, isLoading: statsLoading } = useMyVendorStats();
 
   const products = Array.isArray(productsData) ? productsData : [];
   const orders = Array.isArray(ordersData) ? ordersData : [];
@@ -61,44 +63,40 @@ export default function VendorDashboardPage() {
     }
   }
 
-  // Calculate stats (mock data for now - would come from API)
+  // Real totals from the vendor stats endpoint.
   const stats = {
-    totalRevenue: orders.reduce((sum: number, o: { total?: number }) => sum + (o.total || 0), 0),
-    revenueChange: 12.5,
-    totalOrders: orders.length,
-    ordersChange: 8.2,
-    totalProducts: products.length,
-    productsChange: 3,
-    totalViews: 1247,
-    viewsChange: -2.4,
+    totalRevenue: Number(statsData?.totalRevenue ?? 0),
+    totalOrders: statsData?.totalOrders ?? 0,
+    totalProducts: statsData?.totalProducts ?? 0,
+    pendingOrders: statsData?.pendingOrders ?? 0,
   };
 
-  const isLoading = productsLoading || ordersLoading;
+  const isLoading = productsLoading || ordersLoading || statsLoading;
 
   const statCards = [
     {
       title: "Total Revenue",
       value: formatCurrency(stats.totalRevenue),
-      change: stats.revenueChange,
+      hint: "Delivered orders",
       icon: DollarSign,
     },
     {
       title: "Total Orders",
       value: stats.totalOrders.toString(),
-      change: stats.ordersChange,
+      hint: "All time",
       icon: ShoppingCart,
     },
     {
       title: "Active Products",
       value: stats.totalProducts.toString(),
-      change: stats.productsChange,
+      hint: "In your store",
       icon: Package,
     },
     {
-      title: "Store Views",
-      value: stats.totalViews.toLocaleString(),
-      change: stats.viewsChange,
-      icon: Eye,
+      title: "Pending Orders",
+      value: stats.pendingOrders.toString(),
+      hint: "Awaiting fulfillment",
+      icon: Clock,
     },
   ];
 
@@ -131,23 +129,7 @@ export default function VendorDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="flex items-center text-xs">
-                  {stat.change >= 0 ? (
-                    <ArrowUpRight className="mr-1 h-3 w-3 text-green-500" />
-                  ) : (
-                    <ArrowDownRight className="mr-1 h-3 w-3 text-red-500" />
-                  )}
-                  <span
-                    className={cn(
-                      stat.change >= 0 ? "text-green-500" : "text-red-500"
-                    )}
-                  >
-                    {Math.abs(stat.change)}%
-                  </span>
-                  <span className="ml-1 text-muted-foreground">
-                    from last month
-                  </span>
-                </div>
+                <p className="text-xs text-muted-foreground">{stat.hint}</p>
               </CardContent>
             </Card>
           ))}

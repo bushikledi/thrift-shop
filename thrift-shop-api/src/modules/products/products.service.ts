@@ -203,7 +203,7 @@ export class ProductsService {
       comparePrice: dto.comparePrice,
       // Cast to Prisma's InputJsonValue for JSON fields
       ...(metadata && { metadata: metadata as object }),
-      ...(measurements && { measurements: measurements as object }),
+      ...(measurements && { measurements: measurements }),
     });
 
     // Invalidate featured products cache as new product might be featured
@@ -237,7 +237,7 @@ export class ProductsService {
       ...(categoryId && { category: { connect: { id: categoryId } } }),
       // Cast to Prisma's InputJsonValue for JSON fields
       ...(metadata && { metadata: metadata as object }),
-      ...(measurements && { measurements: measurements as object }),
+      ...(measurements && { measurements: measurements }),
     });
 
     // Invalidate caches for this product

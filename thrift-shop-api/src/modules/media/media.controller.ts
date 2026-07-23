@@ -26,12 +26,14 @@ import {
   ApiNotFoundResponse,
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
-import { MediaService } from './media.service';
+import { MediaService, MediaUser } from './media.service';
 import { CreateMediaDto, MediaQueryDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards';
-import { MediaOwnerType } from '../../generated/prisma/client';
+import { MediaOwnerType, UserRole } from '../../generated/prisma/client';
 import { MediaResponseDto } from '../products/dto/product-response.dto';
 import { ErrorResponseDto } from '../../common/dto/error-response.dto';
+import { CurrentUser, Roles } from '../../common/decorators';
+import { RolesGuard } from '../../common/guards';
 
 @ApiTags('Media')
 @Controller('media')
@@ -39,11 +41,18 @@ export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all media' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all media (admin only)' })
   @ApiResponse({
     status: 200,
     description: 'List of media',
     type: [MediaResponseDto],
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Not authenticated',
+    type: ErrorResponseDto,
   })
   findAll(@Query() query: MediaQueryDto) {
     return this.mediaService.findAll(query);
@@ -101,6 +110,7 @@ export class MediaController {
   upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: CreateMediaDto,
+    @CurrentUser() user: MediaUser,
   ) {
     return this.mediaService.create(
       {
@@ -110,6 +120,7 @@ export class MediaController {
         buffer: file.buffer,
       },
       dto,
+      user,
     );
   }
 
@@ -135,6 +146,7 @@ export class MediaController {
   uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: CreateMediaDto,
+    @CurrentUser() user: MediaUser,
   ) {
     return this.mediaService.createMany(
       files.map((file) => ({
@@ -144,6 +156,7 @@ export class MediaController {
         buffer: file.buffer,
       })),
       dto,
+      user,
     );
   }
 
@@ -159,8 +172,9 @@ export class MediaController {
   getUploadUrl(
     @Body() dto: CreateMediaDto,
     @Body('filename') filename: string,
+    @CurrentUser() user: MediaUser,
   ) {
-    return this.mediaService.getUploadUrl(dto, filename);
+    return this.mediaService.getUploadUrl(dto, filename, user);
   }
 
   @Delete(':id')
@@ -177,7 +191,10 @@ export class MediaController {
     description: 'Media not found',
     type: ErrorResponseDto,
   })
-  delete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.mediaService.delete(id);
+  delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: MediaUser,
+  ) {
+    return this.mediaService.delete(id, user);
   }
 }

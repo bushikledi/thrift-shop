@@ -144,7 +144,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private mapStatusToErrorCode(status: number): string {
-    switch (status as HttpStatus) {
+    switch (status) {
       case HttpStatus.BAD_REQUEST:
         return ErrorCode.BAD_REQUEST;
       case HttpStatus.UNAUTHORIZED:
@@ -172,7 +172,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       typeof exception === 'object' &&
       'code' in exception
     ) {
-      const code = (exception as { code: unknown }).code;
+      const code = exception.code;
       return typeof code === 'string' && code.startsWith('P');
     }
     return false;

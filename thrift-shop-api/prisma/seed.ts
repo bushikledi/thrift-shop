@@ -59,8 +59,13 @@ async function main() {
   await prisma.passwordReset.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create password hash for all users (password: "password123")
-  const passwordHash = await bcrypt.hash('password123', 12);
+  // Passwords for seeded accounts. Default to a well-known demo password for
+  // local development, but allow overriding via env so that seeding a shared or
+  // staging database does not create accounts with a guessable password.
+  const seedPassword = process.env.SEED_PASSWORD || 'password123';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || seedPassword;
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
 
   // =============================================================================
   // USERS
@@ -70,7 +75,7 @@ async function main() {
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@thriftshop.com',
-      passwordHash,
+      passwordHash: adminPasswordHash,
       name: 'Admin User',
       phone: '+1234567890',
       role: UserRole.ADMIN,
@@ -1852,9 +1857,9 @@ async function main() {
   console.log(`   💾 Saved Items: ${savedCount}`);
 
   console.log('\n🔑 Test Credentials:');
-  console.log('   Admin: admin@thriftshop.com / password123');
-  console.log('   Customer: john.doe@email.com / password123');
-  console.log('   Vendor: vintage.vibes@email.com / password123');
+  console.log(`   Admin: admin@thriftshop.com / ${adminPassword}`);
+  console.log(`   Customer: john.doe@email.com / ${seedPassword}`);
+  console.log(`   Vendor: vintage.vibes@email.com / ${seedPassword}`);
 }
 
 main()

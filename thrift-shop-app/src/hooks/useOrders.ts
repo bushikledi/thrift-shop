@@ -26,13 +26,8 @@ export function useCheckout() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: CreateOrderDto) => {
-      console.log("Checkout mutation called with:", data);
-      return ordersApi.checkout(data);
-    },
+    mutationFn: (data: CreateOrderDto) => ordersApi.checkout(data),
     onSuccess: (orders: OrderResponseDto[]) => {
-      console.log("Checkout success, orders received:", orders);
-
       // Clear cart after successful checkout
       queryClient.setQueryData(queryKeys.cart.current(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });

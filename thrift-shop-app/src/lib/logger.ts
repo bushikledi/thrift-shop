@@ -133,42 +133,20 @@ export const logger: Logger = {
 
   error: (message: string, context?: LogContext) => {
     if (shouldLog("error")) {
-      // Early check: if context is an empty object, treat as no context
-      if (
-        context &&
-        typeof context === "object" &&
-        !Array.isArray(context) &&
-        Object.keys(context).length === 0
-      ) {
-        console.error(formatMessage("error", message));
-        SentryStub.captureMessage(message, "error");
-        return;
-      }
-
       const sanitized = sanitizeContext(context);
 
-      // If sanitized is undefined or empty, log without context
-      if (!sanitized || Object.keys(sanitized).length === 0) {
+      // Always emit to the console; include context only when meaningful.
+      if (sanitized) {
+        console.error(formatMessage("error", message), sanitized);
+      } else {
         console.error(formatMessage("error", message));
-        SentryStub.captureMessage(message, "error");
-        return;
       }
 
-      // Verify we have valid values
-      const hasValidValues = Object.values(sanitized).some(
-        (v) => v !== undefined && v !== null && v !== ""
-      );
-
-      if (hasValidValues) {
-        if (sanitized.error instanceof Error) {
-          console.error(formatMessage("error", message), sanitized);
-          SentryStub.captureException(sanitized.error as Error, sanitized);
-        } else {
-          SentryStub.captureMessage(message, "error");
-        }
+      // Report to the error tracker: capture the exception if one is present,
+      // otherwise capture the message.
+      if (sanitized?.error instanceof Error) {
+        SentryStub.captureException(sanitized.error, sanitized);
       } else {
-        // Log without context if all values are empty
-        console.error(formatMessage("error", message));
         SentryStub.captureMessage(message, "error");
       }
     }
