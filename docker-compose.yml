@@ -130,6 +130,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -138,7 +140,7 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:3000/api/health",
+          "http://localhost:3000/api/v1/health",
         ]
       interval: 30s
       timeout: 10s
@@ -152,6 +154,10 @@ services:
     build:
       context: ./thrift-shop-api
       dockerfile: Dockerfile
+      # Use the builder stage: it has the full source (incl. prisma.config.ts,
+      # which supplies the datasource URL), the prisma CLI, and dotenv — the
+      # production runner stage has none of these.
+      target: builder
     container_name: thriftshop-api-migrate
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-thriftshop}?schema=public
