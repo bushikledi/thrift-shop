@@ -632,4 +632,109 @@ export class AdminService {
 
     return { message: 'Product deleted successfully' };
   }
+
+  // ---------------------------------------------------------------------------
+  // Analytics
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Platform analytics for the last `days` days.
+   *
+   * Revenue counts DELIVERED orders only, matching how totalRevenue is reported
+   * elsewhere, while the order count covers every order placed. Days with no
+   * activity are filled in with zeroes so the series is continuous and charts
+   * do not imply data that is missing.
+   */
+  async getAnalytics(days = 30) {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - (days - 1));
+    since.setUTCHours(0, 0, 0, 0);
+
+    const [rows, topCategories, topVendors] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{ day: Date; revenue: number | null; orders: bigint }>
+      >`
+        SELECT date_trunc('day', created_at) AS day,
+               SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END) AS revenue,
+               COUNT(*) AS orders
+        FROM orders
+        WHERE created_at >= ${since}
+        GROUP BY day
+        ORDER BY day ASC
+      `,
+      this.prisma.$queryRaw<
+        Array<{ name: string; revenue: number | null; orders: bigint }>
+      >`
+        SELECT c.name AS name,
+               SUM(oi.price * oi.quantity) AS revenue,
+               COUNT(DISTINCT o.id) AS orders
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN products p ON p.id = oi.product_id
+        JOIN categories c ON c.id = p.category_id
+        WHERE o.created_at >= ${since}
+        GROUP BY c.name
+        ORDER BY revenue DESC NULLS LAST
+        LIMIT 8
+      `,
+      this.prisma.$queryRaw<
+        Array<{ name: string; revenue: number | null; orders: bigint }>
+      >`
+        SELECT v.display_name AS name,
+               SUM(o.total) AS revenue,
+               COUNT(*) AS orders
+        FROM orders o
+        JOIN vendors v ON v.id = o.vendor_id
+        WHERE o.created_at >= ${since}
+        GROUP BY v.display_name
+        ORDER BY revenue DESC NULLS LAST
+        LIMIT 8
+      `,
+    ]);
+
+    return {
+      days,
+      series: this.fillDailySeries(rows, since, days),
+      topCategories: topCategories.map((row) => ({
+        name: row.name,
+        revenue: Number(row.revenue ?? 0),
+        orders: Number(row.orders),
+      })),
+      topVendors: topVendors.map((row) => ({
+        name: row.name,
+        revenue: Number(row.revenue ?? 0),
+        orders: Number(row.orders),
+      })),
+    };
+  }
+
+  /** Expands sparse day rows into one entry per day in the window. */
+  private fillDailySeries(
+    rows: Array<{ day: Date; revenue: number | null; orders: bigint }>,
+    since: Date,
+    days: number,
+  ) {
+    const byDay = new Map<string, { revenue: number; orders: number }>();
+    for (const row of rows) {
+      byDay.set(row.day.toISOString().slice(0, 10), {
+        revenue: Number(row.revenue ?? 0),
+        orders: Number(row.orders),
+      });
+    }
+
+    const series: Array<{ date: string; revenue: number; orders: number }> = [];
+    for (let offset = 0; offset < days; offset++) {
+      const date = new Date(since);
+      date.setUTCDate(since.getUTCDate() + offset);
+      const key = date.toISOString().slice(0, 10);
+      const entry = byDay.get(key);
+      series.push({
+        date: key,
+        revenue: entry?.revenue ?? 0,
+        orders: entry?.orders ?? 0,
+      });
+    }
+
+    return series;
+  }
 }

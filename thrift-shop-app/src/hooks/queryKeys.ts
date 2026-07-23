@@ -63,6 +63,8 @@ export const queryKeys = {
       all: ["vendors", "me"] as const,
       profile: () => [...queryKeys.vendors.me.all, "profile"] as const,
       stats: () => [...queryKeys.vendors.me.all, "stats"] as const,
+      analytics: (days: number) =>
+        [...queryKeys.vendors.me.all, "analytics", days] as const,
       products: (params?: Record<string, unknown>) =>
         [...queryKeys.vendors.me.all, "products", params] as const,
       orders: (params?: Record<string, unknown>) =>
@@ -133,6 +135,7 @@ export const queryKeys = {
     all: ["admin"] as const,
     stats: () => [...queryKeys.admin.all, "stats"] as const,
     settings: () => ["admin", "settings"] as const,
+    analytics: (days: number) => ["admin", "analytics", days] as const,
     users: {
       all: ["admin", "users"] as const,
       list: (params?: Record<string, unknown>) =>

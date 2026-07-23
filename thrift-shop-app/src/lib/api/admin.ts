@@ -30,6 +30,25 @@ export type UpdatePlatformSettings = Partial<
   Omit<PlatformSettings, "updatedAt">
 >;
 
+export interface AnalyticsSeriesPoint {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AnalyticsNamedTotal {
+  name: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminAnalytics {
+  days: number;
+  series: AnalyticsSeriesPoint[];
+  topCategories: AnalyticsNamedTotal[];
+  topVendors: AnalyticsNamedTotal[];
+}
+
 export const adminApi = {
   // === Stats ===
   /**
@@ -170,6 +189,12 @@ export const adminApi = {
 
   deleteProduct: (id: string): Promise<{ message: string }> =>
     del<{ message: string }>(`/admin/products/${id}`),
+
+  /**
+   * Platform analytics for a rolling window
+   */
+  getAnalytics: (days = 30): Promise<AdminAnalytics> =>
+    get<AdminAnalytics>("/admin/analytics", { params: { days } }),
 };
 
 export default adminApi;

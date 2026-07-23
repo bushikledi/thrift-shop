@@ -32,6 +32,8 @@ import {
   AuditLogResponseDto,
   AdminReviewResponseDto,
   FlagProductDto,
+  AnalyticsQueryDto,
+  AdminAnalyticsResponseDto,
   UpdatePlatformSettingsDto,
   PlatformSettingsResponseDto,
 } from './dto';
@@ -361,6 +363,22 @@ export class AdminController {
   })
   async deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.deleteProduct(id);
+  }
+
+  @Get('analytics')
+  @ApiOperation({
+    summary: 'Platform analytics',
+    description:
+      'Daily revenue/order series plus top categories and vendors for the ' +
+      'requested window. Days without activity are returned as zeroes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics for the requested window',
+    type: AdminAnalyticsResponseDto,
+  })
+  async getAnalytics(@Query() query: AnalyticsQueryDto) {
+    return this.adminService.getAnalytics(query.days ?? 30);
   }
 
   // ---------------------------------------------------------------------------

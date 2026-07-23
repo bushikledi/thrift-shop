@@ -385,3 +385,14 @@ export function useAdminDeleteProduct() {
     },
   });
 }
+
+/**
+ * Platform analytics for a rolling window (admin only).
+ */
+export function useAdminAnalytics(days = 30) {
+  return useQuery({
+    queryKey: queryKeys.admin.analytics(days),
+    queryFn: () => adminApi.getAnalytics(days),
+    staleTime: 5 * 60 * 1000,
+  });
+}
