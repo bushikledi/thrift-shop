@@ -21,8 +21,13 @@ import {
   GuestInfo,
   ShippingAddress,
 } from './dto';
-import { OrderStatus, Prisma } from '../../generated/prisma/client';
+import {
+  OrderStatus,
+  PaymentMethod,
+  Prisma,
+} from '../../generated/prisma/client';
 import { OrdersRepository } from './orders.repository';
+import { PaymentsService } from '../payments/payments.service';
 
 interface ShippingConfig {
   baseRate: number;
@@ -62,6 +67,7 @@ export class OrdersService {
     private eventEmitter: EventEmitter2,
     private orderNumberService: OrderNumberService,
     private configService: ConfigService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -272,7 +278,53 @@ export class OrdersService {
       });
     }
 
-    return orders;
+    // Card checkout: hand the buyer off to Stripe's hosted page. Orders stay
+    // PENDING/unpaid until the webhook confirms payment.
+    let payment: { checkoutUrl: string } | null = null;
+    if (dto.paymentMethod === PaymentMethod.STRIPE) {
+      const buyerEmail = await this.resolveBuyerEmail(userId, dto);
+      const session = await this.paymentsService.createCheckoutSession(
+        orders.map((o) => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          total: o.total,
+          vendorId: o.vendorId,
+        })),
+        {
+          customerEmail: buyerEmail || undefined,
+          successUrl: this.buildAppUrl(
+            `/orders/${orders[0].id}?payment=success`,
+          ),
+          cancelUrl: this.buildAppUrl('/checkout?payment=cancelled'),
+        },
+      );
+      payment = { checkoutUrl: session.url };
+    }
+
+    return { orders, payment };
+  }
+
+  /** Frontend URL used for Stripe success/cancel redirects. */
+  private buildAppUrl(path: string): string {
+    const base =
+      this.configService.get<string>('app.frontendUrl') ||
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:3001';
+    return `${base.replace(/\/$/, '')}${path}`;
+  }
+
+  private async resolveBuyerEmail(
+    userId: string | undefined,
+    dto: CreateOrderDto,
+  ): Promise<string | null> {
+    if (userId) {
+      const buyer = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      return buyer?.email ?? null;
+    }
+    return dto.guestInfo?.email ?? null;
   }
 
   /**
@@ -342,14 +394,59 @@ export class OrdersService {
     return order;
   }
 
-  async findByOrderNumber(orderNumber: string) {
-    const order = await this.ordersRepository.findByOrderNumber(orderNumber);
+  /**
+   * Guest order tracking.
+   *
+   * Order numbers are sequential and guessable, so the email used to place the
+   * order must match before anything is returned, and the response is limited
+   * to fulfilment status — no email, phone, or shipping address. A mismatch and
+   * a missing order both yield the same NotFoundException so the endpoint
+   * cannot be used to probe which order numbers exist.
+   */
+  async trackByOrderNumber(orderNumber: string, email: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      select: {
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        shippingMethod: true,
+        trackingNumber: true,
+        subtotal: true,
+        shippingAmount: true,
+        discount: true,
+        total: true,
+        createdAt: true,
+        confirmedAt: true,
+        shippedAt: true,
+        deliveredAt: true,
+        cancelledAt: true,
+        guestInfo: true,
+        buyer: { select: { email: true } },
+        vendor: { select: { displayName: true } },
+        items: {
+          select: { title: true, quantity: true, price: true },
+        },
+      },
+    });
 
-    if (!order) {
+    const provided = email.trim().toLowerCase();
+    const buyerEmail = order?.buyer?.email?.toLowerCase();
+    const guestEmail = (
+      order?.guestInfo as { email?: string } | null
+    )?.email?.toLowerCase();
+
+    if (!order || (provided !== buyerEmail && provided !== guestEmail)) {
       throw new NotFoundException('Order not found');
     }
 
-    return order;
+    // Strip the fields only used to verify ownership.
+    const { guestInfo: _guestInfo, buyer: _buyer, ...tracking } = order;
+    void _guestInfo;
+    void _buyer;
+
+    return tracking;
   }
 
   async getVendorOrders(

@@ -16,6 +16,7 @@ import {
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { MEDIA } from '../../common/constants';
+import { matchesDeclaredImageType } from '../../common/utils';
 import {
   S3Client,
   PutObjectCommand,
@@ -143,6 +144,13 @@ export class MediaService {
       throw new BadRequestException('File too large. Maximum size: 10MB');
     }
 
+    // The declared Content-Type can be forged, so verify the actual bytes.
+    if (!matchesDeclaredImageType(file.buffer, file.mimetype)) {
+      throw new BadRequestException(
+        'File content does not match its declared image type',
+      );
+    }
+
     // Generate unique filename
     const ext = path.extname(file.originalname);
     const hash = crypto.randomBytes(8).toString('hex');
@@ -212,6 +220,9 @@ export class MediaService {
       data: {
         ownerType: dto.ownerType,
         ownerId: dto.ownerId,
+        // Only product media carries the concrete foreign key.
+        productId:
+          dto.ownerType === MediaOwnerType.PRODUCT ? dto.ownerId : null,
         url: uploadResult.url,
         filename: uploadResult.filename,
         mimeType: uploadResult.mimeType,
@@ -252,6 +263,9 @@ export class MediaService {
         data: {
           ownerType: dto.ownerType,
           ownerId: dto.ownerId,
+          // Only product media carries the concrete foreign key.
+          productId:
+            dto.ownerType === MediaOwnerType.PRODUCT ? dto.ownerId : null,
           url: uploadResult.url,
           filename: uploadResult.filename,
           mimeType: uploadResult.mimeType,

@@ -4,3 +4,4 @@ export { default as jwtConfig } from './jwt.config';
 export { default as s3Config } from './s3.config';
 export { default as redisConfig } from './redis.config';
 export { default as shippingConfig } from './shipping.config';
+export { default as stripeConfig } from './stripe.config';

@@ -4,13 +4,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
-import { UpdateVendorDto } from './dto';
+import { UpdateVendorDto, VendorPayoutDetails } from './dto';
 import { OrderStatus, Prisma } from '../../generated/prisma/client';
 import { PAGINATION } from '../../common/constants';
+import { EncryptionService } from '../../common/utils';
 
 @Injectable()
 export class VendorsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private encryption: EncryptionService,
+  ) {}
 
   async findAll(page = 1, limit = 20, verified?: boolean) {
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT);
@@ -57,9 +61,21 @@ export class VendorsService {
   }
 
   async findByName(name: string) {
+    // This endpoint is public: select storefront fields explicitly so private
+    // columns (payoutDetails, address, settings) are never exposed.
     const vendor = await this.prisma.vendor.findUnique({
       where: { name },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        bio: true,
+        logo: true,
+        banner: true,
+        verified: true,
+        rating: true,
+        reviewCount: true,
+        createdAt: true,
         user: {
           select: {
             id: true,
@@ -101,7 +117,14 @@ export class VendorsService {
       throw new NotFoundException('Vendor not found');
     }
 
-    return vendor;
+    // Only reached by the owning vendor (me/profile), so the decrypted payout
+    // details are returned rather than the stored ciphertext.
+    return {
+      ...vendor,
+      payoutDetails: this.encryption.decryptJson<VendorPayoutDetails>(
+        vendor.payoutDetails,
+      ),
+    };
   }
 
   async update(id: string, userId: string, dto: UpdateVendorDto) {
@@ -117,15 +140,24 @@ export class VendorsService {
       throw new ForbiddenException('Access denied');
     }
 
-    return this.prisma.vendor.update({
+    const updated = await this.prisma.vendor.update({
       where: { id },
       data: {
         ...dto,
+        // Payout details contain bank/PayPal identifiers: encrypt at rest.
         payoutDetails: dto.payoutDetails
-          ? (dto.payoutDetails as unknown as Prisma.InputJsonValue)
+          ? this.encryption.encryptJson(dto.payoutDetails)
           : undefined,
       },
     });
+
+    // Return the readable form to the owner rather than the ciphertext.
+    return {
+      ...updated,
+      payoutDetails: this.encryption.decryptJson<VendorPayoutDetails>(
+        updated.payoutDetails,
+      ),
+    };
   }
 
   async getProducts(

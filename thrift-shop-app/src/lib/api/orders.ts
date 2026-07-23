@@ -9,18 +9,61 @@ import type {
   PaginationParams,
 } from "@/types";
 
+/**
+ * Reduced order shape returned by the public tracking endpoint. Deliberately
+ * excludes contact details and the shipping address.
+ */
+export interface OrderTrackingResponse {
+  orderNumber: string;
+  status: OrderResponseDto["status"];
+  paymentStatus: OrderResponseDto["paymentStatus"];
+  paymentMethod: string;
+  shippingMethod: string | null;
+  trackingNumber: string | null;
+  subtotal: number;
+  shippingAmount: number;
+  discount: number;
+  total: number;
+  createdAt: string;
+  confirmedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  vendor: { displayName: string };
+  items: { title: string; quantity: number; price: number }[];
+}
+
+/**
+ * Checkout result. For card payments the API returns a Stripe Checkout URL to
+ * redirect to; cash-on-delivery orders come back with `payment: null`.
+ */
+export interface CheckoutResponse {
+  orders: OrderResponseDto[];
+  payment: { checkoutUrl: string } | null;
+}
+
 export const ordersApi = {
   /**
    * Create order (supports guest checkout)
    */
-  checkout: (data: CreateOrderDto): Promise<OrderResponseDto[]> =>
-    post<OrderResponseDto[], CreateOrderDto>("/orders/checkout", data),
+  checkout: (data: CreateOrderDto): Promise<CheckoutResponse> =>
+    post<CheckoutResponse, CreateOrderDto>("/orders/checkout", data),
 
   /**
-   * Track order by order number
+   * Track an order.
+   *
+   * Requires the email used to place the order as proof of ownership; sent in
+   * the body so it never appears in a URL or request log. Returns fulfilment
+   * status only (no contact details or shipping address).
    */
-  track: (orderNumber: string): Promise<OrderResponseDto> =>
-    get<OrderResponseDto>(`/orders/track/${orderNumber}`),
+  track: (
+    orderNumber: string,
+    email: string
+  ): Promise<OrderTrackingResponse> =>
+    post<OrderTrackingResponse, { orderNumber: string; email: string }>(
+      "/orders/track",
+      { orderNumber, email }
+    ),
 
   /**
    * Get order by ID

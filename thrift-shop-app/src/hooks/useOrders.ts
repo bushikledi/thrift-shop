@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ordersApi } from "@/lib/api/orders";
+import { ordersApi, type CheckoutResponse } from "@/lib/api/orders";
 import { usersApi } from "@/lib/api/users";
 import { queryKeys } from "./queryKeys";
 import type {
@@ -27,7 +27,7 @@ export function useCheckout() {
 
   return useMutation({
     mutationFn: (data: CreateOrderDto) => ordersApi.checkout(data),
-    onSuccess: (orders: OrderResponseDto[]) => {
+    onSuccess: ({ orders, payment }: CheckoutResponse) => {
       // Clear cart after successful checkout
       queryClient.setQueryData(queryKeys.cart.current(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
@@ -35,6 +35,14 @@ export function useCheckout() {
       // Invalidate orders
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.orders() });
+
+      // Card payment: hand off to Stripe's hosted checkout. The order stays
+      // unpaid until Stripe's webhook confirms it, so don't claim success yet.
+      if (payment?.checkoutUrl) {
+        toast.info("Redirecting to secure payment...");
+        window.location.href = payment.checkoutUrl;
+        return;
+      }
 
       toast.success("Order placed successfully!");
 
@@ -54,13 +62,18 @@ export function useCheckout() {
 }
 
 /**
- * Track order by order number
+ * Track an order. Both the order number and the email used to place it are
+ * required — order numbers alone are guessable, so the API verifies ownership.
  */
-export function useTrackOrder(orderNumber: string, enabled = true) {
+export function useTrackOrder(
+  orderNumber: string,
+  email: string,
+  enabled = true
+) {
   return useQuery({
     queryKey: queryKeys.orders.track(orderNumber),
-    queryFn: () => ordersApi.track(orderNumber),
-    enabled: !!orderNumber && enabled,
+    queryFn: () => ordersApi.track(orderNumber, email),
+    enabled: !!orderNumber && !!email && enabled,
     staleTime: 30 * 1000, // 30 seconds - tracking should be fresh
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.statusCode === 404) {

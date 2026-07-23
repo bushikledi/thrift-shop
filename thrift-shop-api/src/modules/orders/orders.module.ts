@@ -4,9 +4,10 @@ import { OrdersService } from './orders.service';
 import { OrdersRepository } from './orders.repository';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrderNumberService } from '../../common/utils';
+import { PaymentsModule } from '../payments';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [PaymentsModule, NotificationsModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersRepository, OrderNumberService],
   exports: [OrdersService, OrdersRepository, OrderNumberService],

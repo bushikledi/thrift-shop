@@ -36,8 +36,6 @@ import {
   cn,
   formatCurrency,
   formatPhoneNumber,
-  formatCardNumber,
-  formatExpiryDate,
   formatZipCode,
 } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
@@ -61,41 +59,15 @@ const checkoutSchema = z
     zipCode: z.string().min(5, "ZIP code is required"),
     country: z.string().min(2, "Country is required"),
 
-    // Payment
+    // Payment. Card details are never collected here - choosing "STRIPE"
+    // redirects to Stripe's hosted checkout, so no card data touches this app.
     paymentMethod: z.enum(["COD", "STRIPE"]),
-    cardNumber: z.string().optional(),
-    cardName: z.string().optional(),
-    expiryDate: z.string().optional(),
-    cvv: z.string().optional(),
 
     // Options
     sameAsBilling: z.boolean(),
-    savePayment: z.boolean(),
     shippingMethod: z.enum(["standard", "express", "overnight"]),
     notes: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      // If STRIPE is selected, card fields are required
-      if (data.paymentMethod === "STRIPE") {
-        return (
-          data.cardNumber &&
-          data.cardNumber.length >= 16 &&
-          data.cardName &&
-          data.cardName.length >= 2 &&
-          data.expiryDate &&
-          /^\d{2}\/\d{2}$/.test(data.expiryDate) &&
-          data.cvv &&
-          data.cvv.length >= 3
-        );
-      }
-      return true;
-    },
-    {
-      message: "Card information is required for card payments",
-      path: ["cardNumber"],
-    }
-  );
+  });
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
@@ -198,7 +170,6 @@ export default function CheckoutPage() {
       zipCode: "",
       country: "US",
       sameAsBilling: true,
-      savePayment: false,
       shippingMethod: "standard",
       paymentMethod: "COD",
     },
@@ -252,7 +223,6 @@ export default function CheckoutPage() {
   const selectedShipping = useWatch({ control, name: "shippingMethod" });
   const paymentMethod = useWatch({ control, name: "paymentMethod" });
   const sameAsBilling = useWatch({ control, name: "sameAsBilling" });
-  const savePayment = useWatch({ control, name: "savePayment" });
   const shippingCost =
     shippingMethods.find((m) => m.id === selectedShipping)?.price || 0;
 
@@ -904,99 +874,24 @@ export default function CheckoutPage() {
 
                 <Separator />
 
-                {/* Card Details - Only show when STRIPE is selected */}
+                {/* Card payment is handled entirely by Stripe's hosted
+                    checkout, so no card details are collected here. */}
                 {paymentMethod === "STRIPE" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        {...register("cardNumber", {
-                          onChange: (e) => {
-                            const formatted = formatCardNumber(e.target.value);
-                            if (formatted !== e.target.value) {
-                              e.target.value = formatted;
-                              setValue("cardNumber", formatted, {
-                                shouldValidate: false,
-                              });
-                            }
-                          },
-                        })}
-                        disabled={step !== "payment"}
-                        maxLength={19}
+                  <div className="rounded-lg bg-muted p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Lock
+                        className="mt-0.5 h-4 w-4 text-muted-foreground"
+                        aria-hidden="true"
                       />
-                      {errors.cardNumber && (
-                        <p
-                          className="text-sm text-destructive flex items-center gap-1"
-                          role="alert"
-                        >
-                          <span aria-hidden="true">⚠️</span>
-                          {errors.cardNumber.message}
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          You&apos;ll be redirected to Stripe to pay securely
                         </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cardName">Name on Card</Label>
-                      <Input
-                        id="cardName"
-                        {...register("cardName")}
-                        disabled={step !== "payment"}
-                      />
-                      {errors.cardName && (
-                        <p className="text-sm text-destructive">
-                          {errors.cardName.message}
+                        <p className="text-sm text-muted-foreground">
+                          Card details are entered on Stripe&apos;s payment page
+                          and never touch our servers. Your order is created
+                          first and confirmed once payment succeeds.
                         </p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiryDate">Expiry Date</Label>
-                        <Input
-                          id="expiryDate"
-                          placeholder="MM/YY"
-                          {...register("expiryDate", {
-                            onChange: (e) => {
-                              const formatted = formatExpiryDate(
-                                e.target.value
-                              );
-                              if (formatted !== e.target.value) {
-                                e.target.value = formatted;
-                                setValue("expiryDate", formatted, {
-                                  shouldValidate: false,
-                                });
-                              }
-                            },
-                          })}
-                          disabled={step !== "payment"}
-                          maxLength={5}
-                        />
-                        {errors.expiryDate && (
-                          <p
-                            className="text-sm text-destructive flex items-center gap-1"
-                            role="alert"
-                          >
-                            <span aria-hidden="true">⚠️</span>
-                            {errors.expiryDate.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          type="password"
-                          maxLength={4}
-                          {...register("cvv")}
-                          disabled={step !== "payment"}
-                        />
-                        {errors.cvv && (
-                          <p className="text-sm text-destructive">
-                            {errors.cvv.message}
-                          </p>
-                        )}
                       </div>
                     </div>
 
@@ -1016,24 +911,7 @@ export default function CheckoutPage() {
                         Billing address same as shipping
                       </Label>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="savePayment"
-                        checked={savePayment}
-                        onCheckedChange={(checked) =>
-                          setValue("savePayment", checked as boolean)
-                        }
-                        disabled={step !== "payment"}
-                      />
-                      <Label
-                        htmlFor="savePayment"
-                        className="text-sm font-normal"
-                      >
-                        Save payment method for future purchases
-                      </Label>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 {paymentMethod === "COD" && (
@@ -1058,42 +936,7 @@ export default function CheckoutPage() {
                     <Button
                       type="button"
                       className="flex-1"
-                      onClick={() => {
-                        // Validate payment fields if STRIPE is selected
-                        if (paymentMethod === "STRIPE") {
-                          const paymentFields = [
-                            "cardNumber",
-                            "cardName",
-                            "expiryDate",
-                            "cvv",
-                          ];
-                          const hasPaymentErrors = paymentFields.some(
-                            (field) => errors[field as keyof typeof errors]
-                          );
-                          if (hasPaymentErrors) {
-                            toast.error(
-                              "Please fill in all required payment fields"
-                            );
-                            const firstErrorField = paymentFields.find(
-                              (field) => errors[field as keyof typeof errors]
-                            );
-                            if (firstErrorField) {
-                              const element = document.querySelector(
-                                `[name="${firstErrorField}"]`
-                              );
-                              if (element) {
-                                element.scrollIntoView({
-                                  behavior: "smooth",
-                                  block: "center",
-                                });
-                                (element as HTMLElement).focus();
-                              }
-                            }
-                            return;
-                          }
-                        }
-                        setStep("review");
-                      }}
+                      onClick={() => setStep("review")}
                     >
                       Review Order
                       <ChevronLeft className="ml-2 h-4 w-4 rotate-180" />
@@ -1201,13 +1044,7 @@ export default function CheckoutPage() {
                             ) {
                               setStep("shipping");
                             } else if (
-                              [
-                                "paymentMethod",
-                                "cardNumber",
-                                "cardName",
-                                "expiryDate",
-                                "cvv",
-                              ].includes(firstError)
+                              ["paymentMethod"].includes(firstError)
                             ) {
                               setStep("payment");
                             }
