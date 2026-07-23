@@ -15,6 +15,11 @@ import {
 } from '../../generated/prisma/client';
 import * as path from 'path';
 import * as crypto from 'crypto';
+// sharp sets module.exports to the function itself and this project compiles
+// to CommonJS without esModuleInterop, so a default import resolves to
+// undefined at runtime.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import sharp = require('sharp');
 import { MEDIA } from '../../common/constants';
 import { matchesDeclaredImageType } from '../../common/utils';
 import {
@@ -154,50 +159,148 @@ export class MediaService {
     // Generate unique filename
     const ext = path.extname(file.originalname);
     const hash = crypto.randomBytes(8).toString('hex');
-    const filename = `${dto.ownerType.toLowerCase()}/${dto.ownerId}/${hash}${ext}`;
+    const basePath = `${dto.ownerType.toLowerCase()}/${dto.ownerId}/${hash}`;
+    const filename = `${basePath}${ext}`;
 
-    let url: string;
+    // Read the real dimensions and build the resized renditions up front, so
+    // every variant URL corresponds to an object that actually gets stored.
+    const { width, height, renditions } = await this.buildRenditions(
+      file,
+      basePath,
+    );
 
-    // Upload to S3 if client is configured
-    if (this.s3Client) {
-      try {
-        await this.s3Client.send(
-          new PutObjectCommand({
-            Bucket: this.bucketName,
-            Key: filename,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-            CacheControl: 'max-age=31536000', // 1 year cache
-          }),
-        );
-        url = `${this.cdnUrl}/${this.bucketName}/${filename}`;
-        this.logger.log(`File uploaded to S3: ${filename}`);
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.error(`S3 upload failed: ${errorMessage}`);
-        throw new BadRequestException('Failed to upload file');
-      }
-    } else {
-      // Mock storage - generate placeholder URL
-      url = `${this.s3Endpoint}/${this.bucketName}/${filename}`;
-      this.logger.debug(`Mock upload: ${filename}`);
+    const url = await this.storeObject(filename, file.buffer, file.mimetype);
+
+    const variants: Record<string, string> = {};
+    for (const rendition of renditions) {
+      variants[rendition.name] = await this.storeObject(
+        rendition.key,
+        rendition.buffer,
+        rendition.mimeType,
+      );
     }
-
-    // Generate thumbnail URLs (placeholder - in production use image processing)
-    const variants = {
-      thumb: url.replace(ext, `-thumb${ext}`),
-      medium: url.replace(ext, `-medium${ext}`),
-      webp: url.replace(ext, '.webp'),
-    };
 
     return {
       url,
       filename,
       mimeType: file.mimetype,
       size: file.size,
+      width,
+      height,
       variants,
     };
+  }
+
+  /**
+   * Produces the resized renditions stored alongside an upload.
+   *
+   * GIFs are passed through untouched because resizing them here would drop
+   * the animation. If decoding fails the original is still stored - a bad
+   * thumbnail should not fail the upload.
+   */
+  private async buildRenditions(
+    file: UploadedFile,
+    basePath: string,
+  ): Promise<{
+    width?: number;
+    height?: number;
+    renditions: Array<{
+      name: string;
+      key: string;
+      buffer: Buffer;
+      mimeType: string;
+    }>;
+  }> {
+    if (file.mimetype === 'image/gif') {
+      return { renditions: [] };
+    }
+
+    try {
+      const image = sharp(file.buffer);
+      const metadata = await image.metadata();
+
+      const [thumb, medium, webp] = await Promise.all([
+        sharp(file.buffer)
+          .resize(MEDIA.THUMB_WIDTH, MEDIA.THUMB_WIDTH, {
+            fit: 'cover',
+            position: 'centre',
+          })
+          .toBuffer(),
+        sharp(file.buffer)
+          .resize(MEDIA.MEDIUM_WIDTH, null, { withoutEnlargement: true })
+          .toBuffer(),
+        sharp(file.buffer)
+          .resize(MEDIA.MEDIUM_WIDTH, null, { withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer(),
+      ]);
+
+      const ext = path.extname(file.originalname) || '.jpg';
+
+      return {
+        width: metadata.width,
+        height: metadata.height,
+        renditions: [
+          {
+            name: 'thumb',
+            key: `${basePath}-thumb${ext}`,
+            buffer: thumb,
+            mimeType: file.mimetype,
+          },
+          {
+            name: 'medium',
+            key: `${basePath}-medium${ext}`,
+            buffer: medium,
+            mimeType: file.mimetype,
+          },
+          {
+            name: 'webp',
+            key: `${basePath}.webp`,
+            buffer: webp,
+            mimeType: 'image/webp',
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(
+        `Could not generate image renditions, storing original only: ${message}`,
+      );
+      return { renditions: [] };
+    }
+  }
+
+  /** Stores one object and returns its public URL. */
+  private async storeObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    if (!this.s3Client) {
+      // Mock storage: nothing is persisted, so return the URL the object
+      // would have had.
+      this.logger.debug(`Mock upload: ${key}`);
+      return `${this.s3Endpoint}/${this.bucketName}/${key}`;
+    }
+
+    try {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          CacheControl: 'max-age=31536000', // 1 year cache
+        }),
+      );
+      this.logger.log(`File uploaded to S3: ${key}`);
+      return `${this.cdnUrl}/${this.bucketName}/${key}`;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`S3 upload failed: ${errorMessage}`);
+      throw new BadRequestException('Failed to upload file');
+    }
   }
 
   async create(file: UploadedFile, dto: CreateMediaDto, user: MediaUser) {

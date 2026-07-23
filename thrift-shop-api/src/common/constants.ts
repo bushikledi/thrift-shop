@@ -41,4 +41,8 @@ export const CART = {
 export const MEDIA = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB in bytes
   ALLOWED_MIME_TYPES: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  // Square crop used for listing grids and cart rows.
+  THUMB_WIDTH: 300,
+  // Longest edge for detail views; images smaller than this are not upscaled.
+  MEDIUM_WIDTH: 900,
 } as const;
