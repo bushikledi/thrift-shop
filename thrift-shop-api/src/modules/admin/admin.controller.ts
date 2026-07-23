@@ -31,6 +31,8 @@ import {
   AdminStatsResponseDto,
   AuditLogResponseDto,
   AdminReviewResponseDto,
+  UpdatePlatformSettingsDto,
+  PlatformSettingsResponseDto,
 } from './dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { RolesGuard } from '../../common/guards';
@@ -311,5 +313,36 @@ export class AdminController {
     @Query('limit') limit?: number,
   ) {
     return this.adminService.getAuditLogs(page || 1, limit || 50);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Platform settings
+  // ---------------------------------------------------------------------------
+
+  @Get('settings')
+  @ApiOperation({ summary: 'Get platform settings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current platform settings',
+    type: PlatformSettingsResponseDto,
+  })
+  async getSettings() {
+    return this.adminService.getPlatformSettings();
+  }
+
+  @Put('settings')
+  @ApiOperation({
+    summary: 'Update platform settings',
+    description:
+      'Enabling maintenance mode makes the API reject shopping traffic with ' +
+      '503 while leaving authentication and admin routes reachable.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated platform settings',
+    type: PlatformSettingsResponseDto,
+  })
+  async updateSettings(@Body() dto: UpdatePlatformSettingsDto) {
+    return this.adminService.updatePlatformSettings(dto);
   }
 }

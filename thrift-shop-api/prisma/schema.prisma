@@ -474,3 +474,21 @@ model AuditLog {
   
   @@map("audit_logs")
 }
+
+// =============================================================================
+// PLATFORM SETTINGS
+// =============================================================================
+
+/// Single-row table holding platform-wide configuration editable by admins.
+/// The fixed `id` keeps it a singleton so reads/writes are a simple upsert.
+model PlatformSettings {
+  id              String   @id @default("singleton")
+  siteName        String   @default("ThriftShop") @map("site_name")
+  siteDescription String?  @map("site_description")
+  supportEmail    String?  @map("support_email")
+  maintenanceMode Boolean  @default(false) @map("maintenance_mode")
+
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}

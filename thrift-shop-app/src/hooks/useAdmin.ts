@@ -6,7 +6,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api/admin";
+import {
+  adminApi,
+  type UpdatePlatformSettings,
+} from "@/lib/api/admin";
 import { queryKeys } from "./queryKeys";
 import type {
   AdminUpdateUserDto,
@@ -304,5 +307,31 @@ export function useAdminAuditLogs(params: PaginationParams) {
     ),
     queryFn: () => adminApi.getAuditLogs(params),
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Platform settings (admin only).
+ */
+export function useAdminSettings() {
+  return useQuery({
+    queryKey: queryKeys.admin.settings(),
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUpdateAdminSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdatePlatformSettings) => adminApi.updateSettings(data),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(queryKeys.admin.settings(), settings);
+      toast.success("Settings saved");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to save settings");
+    },
   });
 }

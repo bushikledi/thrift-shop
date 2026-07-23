@@ -103,3 +103,9 @@ export type SavedItem = Prisma.SavedItemModel
  * 
  */
 export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model PlatformSettings
+ * Single-row table holding platform-wide configuration editable by admins.
+ * The fixed `id` keeps it a singleton so reads/writes are a simple upsert.
+ */
+export type PlatformSettings = Prisma.PlatformSettingsModel

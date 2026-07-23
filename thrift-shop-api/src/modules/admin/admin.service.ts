@@ -9,6 +9,7 @@ import {
 } from './dto';
 import { OrderStatus, Prisma } from '../../generated/prisma/client';
 import { PAGINATION } from '../../common/constants';
+import { UpdatePlatformSettingsDto } from './dto';
 
 @Injectable()
 export class AdminService {
@@ -539,6 +540,29 @@ export class AdminService {
           ? (JSON.parse(JSON.stringify(newData)) as Prisma.InputJsonValue)
           : Prisma.JsonNull,
       },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Platform settings
+  // ---------------------------------------------------------------------------
+
+  /** The settings row is a singleton; create it with defaults on first read. */
+  private static readonly SETTINGS_ID = 'singleton';
+
+  async getPlatformSettings() {
+    return this.prisma.platformSettings.upsert({
+      where: { id: AdminService.SETTINGS_ID },
+      create: { id: AdminService.SETTINGS_ID },
+      update: {},
+    });
+  }
+
+  async updatePlatformSettings(dto: UpdatePlatformSettingsDto) {
+    return this.prisma.platformSettings.upsert({
+      where: { id: AdminService.SETTINGS_ID },
+      create: { id: AdminService.SETTINGS_ID, ...dto },
+      update: dto,
     });
   }
 }

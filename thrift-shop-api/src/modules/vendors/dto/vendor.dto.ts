@@ -101,6 +101,14 @@ export class UpdateVendorDto {
       price: number;
       estimatedDays: number;
     }>;
+    /**
+     * Public store contact details, kept separate from the owner's account
+     * email/phone (which are login credentials, not storefront information).
+     */
+    contact?: {
+      email?: string;
+      phone?: string;
+    };
   };
 
   @ApiPropertyOptional({ type: PayoutDetailsDto })

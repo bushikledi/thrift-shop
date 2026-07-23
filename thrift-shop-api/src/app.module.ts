@@ -20,6 +20,7 @@ import { CorrelationIdMiddleware } from './common/middleware';
 // Feature modules
 import { AuthModule } from './modules/auth';
 import { JwtAuthGuard } from './modules/auth/guards';
+import { MaintenanceGuard } from './common/guards';
 import { UsersModule } from './modules/users';
 import { VendorsModule } from './modules/vendors';
 import { CategoriesModule } from './modules/categories';
@@ -121,6 +122,11 @@ import { HealthModule } from './modules/health';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Runs after JwtAuthGuard so it can see the authenticated user's role.
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })

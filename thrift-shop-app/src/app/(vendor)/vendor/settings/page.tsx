@@ -4,12 +4,15 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Save, Store, Mail, MapPin, Phone } from "lucide-react";
-import { toast } from "sonner";
+import {
+  useMyVendorProfile,
+  useUpdateMyVendorProfile,
+} from "@/hooks/useVendors";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,12 +46,31 @@ const storeSettingsSchema = z.object({
 
 type StoreSettingsFormData = z.infer<typeof storeSettingsSchema>;
 
+/** Store contact details live in the vendor settings JSON. */
+interface VendorSettings {
+  contact?: { email?: string; phone?: string };
+}
+
+/**
+ * The generated VendorDetailDto omits address and settings even though
+ * /vendors/me/profile returns them, so the shape this page relies on is
+ * declared here until the response DTO documents those fields.
+ */
+interface VendorProfileFields {
+  displayName?: string | null;
+  bio?: string | null;
+  address?: Record<string, string> | null;
+  settings?: VendorSettings | null;
+}
+
 export default function VendorSettingsPage() {
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: vendor, isLoading } = useMyVendorProfile();
+  const updateProfile = useUpdateMyVendorProfile();
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<StoreSettingsFormData>({
     resolver: zodResolver(storeSettingsSchema),
@@ -65,18 +87,50 @@ export default function VendorSettingsPage() {
     },
   });
 
-  const onSubmit = async (data: StoreSettingsFormData) => {
-    setIsSaving(true);
-    try {
-      // TODO: Implement API call to save vendor settings
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Settings saved successfully");
-    } catch (error) {
-      toast.error("Failed to save settings");
-    } finally {
-      setIsSaving(false);
-    }
+  // Populate the form once the stored profile arrives. reset() is the
+  // react-hook-form API for this, so no server state is mirrored in useState.
+  const profile = vendor as VendorProfileFields | undefined;
+
+  useEffect(() => {
+    if (!profile) return;
+    const address = profile.address ?? {};
+    const contact = profile.settings?.contact ?? {};
+
+    reset({
+      name: profile.displayName ?? "",
+      description: profile.bio ?? "",
+      email: contact.email ?? "",
+      phone: contact.phone ?? "",
+      address: address.street ?? "",
+      city: address.city ?? "",
+      state: address.state ?? "",
+      postalCode: address.zip ?? "",
+      country: address.country ?? "Albania",
+    });
+  }, [profile, reset]);
+
+  const onSubmit = (data: StoreSettingsFormData) => {
+    updateProfile.mutate({
+      displayName: data.name,
+      bio: data.description,
+      address: {
+        street: data.address ?? "",
+        city: data.city ?? "",
+        state: data.state ?? "",
+        zip: data.postalCode ?? "",
+        country: data.country ?? "",
+      },
+      settings: {
+        // Preserve any settings this form does not manage.
+        ...(profile?.settings ?? {}),
+        contact: { email: data.email, phone: data.phone },
+      },
+      // Cast: the generated UpdateVendorDto types address/settings as empty
+      // objects because the backend declares them with a bare @IsObject().
+    } as unknown as Parameters<typeof updateProfile.mutate>[0]);
   };
+
+  const isSaving = updateProfile.isPending;
 
   return (
     <div className="space-y-6">
@@ -220,7 +274,7 @@ export default function VendorSettingsPage() {
         </Tabs>
 
         <div className="flex justify-end mt-6">
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || isLoading}>
             {isSaving ? (
               <>
                 <span className="mr-2">Saving...</span>

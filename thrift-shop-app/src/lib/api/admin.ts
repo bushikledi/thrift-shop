@@ -18,6 +18,18 @@ import type {
   PaginationParams,
 } from "@/types";
 
+export interface PlatformSettings {
+  siteName: string;
+  siteDescription: string | null;
+  supportEmail: string | null;
+  maintenanceMode: boolean;
+  updatedAt: string;
+}
+
+export type UpdatePlatformSettings = Partial<
+  Omit<PlatformSettings, "updatedAt">
+>;
+
 export const adminApi = {
   // === Stats ===
   /**
@@ -135,6 +147,17 @@ export const adminApi = {
    */
   getAuditLogs: (params: PaginationParams): Promise<AuditLogResponseDto[]> =>
     get<AuditLogResponseDto[]>("/admin/audit-logs", { params }),
+
+  /**
+   * Platform settings
+   */
+  getSettings: (): Promise<PlatformSettings> =>
+    get<PlatformSettings>("/admin/settings"),
+
+  updateSettings: (
+    data: UpdatePlatformSettings
+  ): Promise<PlatformSettings> =>
+    put<PlatformSettings, UpdatePlatformSettings>("/admin/settings", data),
 };
 
 export default adminApi;
