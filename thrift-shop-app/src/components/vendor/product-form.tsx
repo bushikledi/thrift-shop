@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useForm, Controller, useWatch } from "react-hook-form";
@@ -34,7 +34,10 @@ import {
 } from "@/components/ui/card";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
+import { mediaApi } from "@/lib/api/media";
 import type { ProductDetailDto, ProductCondition } from "@/types";
+
+const MAX_IMAGES = 8;
 
 // Validation schema
 const productSchema = z.object({
@@ -86,17 +89,35 @@ const conditions: {
 
 export function ProductForm({ product, mode }: ProductFormProps) {
   const router = useRouter();
-  const [images, setImages] = useState<string[]>(
-    product?.media?.map((m) => m.url) || []
-  );
+  // Images already persisted on the product (edit mode).
+  const [existingMedia, setExistingMedia] = useState<
+    { id: string; url: string }[]
+  >(product?.media?.map((m) => ({ id: m.id, url: m.url })) || []);
+  // Newly selected files, uploaded after the product is saved.
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [tagInput, setTagInput] = useState("");
+
+  // Local object URLs for previewing newly selected files.
+  const newFilePreviews = useMemo(
+    () => newFiles.map((file) => URL.createObjectURL(file)),
+    [newFiles]
+  );
+  useEffect(() => {
+    return () => {
+      newFilePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [newFilePreviews]);
+
+  const totalImages = existingMedia.length + newFiles.length;
 
   const { data: categoriesData } = useCategories();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
 
   const categories = Array.isArray(categoriesData) ? categoriesData : [];
-  const isLoading = createProduct.isPending || updateProduct.isPending;
+  const isLoading =
+    createProduct.isPending || updateProduct.isPending || isUploading;
 
   const {
     register,
@@ -135,20 +156,39 @@ export function ProductForm({ product, mode }: ProductFormProps) {
     );
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    // TODO: Implement actual image upload
-    // For now, create object URLs
-    const newImages = Array.from(files).map((file) =>
-      URL.createObjectURL(file)
-    );
-    setImages([...images, ...newImages]);
+    const selected = Array.from(files);
+    const remainingSlots = MAX_IMAGES - totalImages;
+    if (remainingSlots <= 0) {
+      toast.error(`You can add up to ${MAX_IMAGES} images`);
+      return;
+    }
+
+    setNewFiles((prev) => [...prev, ...selected.slice(0, remainingSlots)]);
+    // Allow selecting the same file again after removal.
+    e.target.value = "";
   };
 
-  const handleRemoveImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
+  const handleRemoveExisting = async (id: string) => {
+    // Optimistically remove, then delete from the server.
+    const previous = existingMedia;
+    setExistingMedia((prev) => prev.filter((m) => m.id !== id));
+    try {
+      await mediaApi.delete(id);
+    } catch (err) {
+      // Restore on failure.
+      setExistingMedia(previous);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to remove image"
+      );
+    }
+  };
+
+  const handleRemoveNewFile = (index: number) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const onSubmit = async (data: ProductFormData) => {
@@ -166,21 +206,41 @@ export function ProductForm({ product, mode }: ProductFormProps) {
         isUnique: true,
       };
 
-      if (mode === "create") {
-        await createProduct.mutateAsync(productData);
-        toast.success("Product created successfully!");
-        router.push("/vendor/products");
-      } else if (product) {
-        await updateProduct.mutateAsync({ 
-          id: product.id, 
-          data: {
-            ...productData,
-            comparePrice: productData.comparePrice ?? undefined,
-          }
-        });
-        toast.success("Product updated successfully!");
-        router.push("/vendor/products");
+      // Save the product first so we have an id to attach media to.
+      const saved =
+        mode === "create"
+          ? await createProduct.mutateAsync(productData)
+          : product
+            ? await updateProduct.mutateAsync({
+                id: product.id,
+                data: {
+                  ...productData,
+                  comparePrice: productData.comparePrice ?? undefined,
+                },
+              })
+            : null;
+
+      if (!saved) return;
+
+      // Upload any newly selected images against the saved product.
+      if (newFiles.length > 0) {
+        setIsUploading(true);
+        try {
+          await mediaApi.uploadMultiple(newFiles, "PRODUCT", saved.id);
+          setNewFiles([]);
+        } catch (err) {
+          toast.error(
+            err instanceof Error
+              ? `Product saved, but image upload failed: ${err.message}`
+              : "Product saved, but image upload failed"
+          );
+          setIsUploading(false);
+          return;
+        }
+        setIsUploading(false);
       }
+
+      router.push("/vendor/products");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to save product"
@@ -243,20 +303,20 @@ export function ProductForm({ product, mode }: ProductFormProps) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {images.map((image, index) => (
+                {existingMedia.map((media, index) => (
                   <div
-                    key={index}
+                    key={media.id}
                     className="group relative aspect-square rounded-lg border bg-muted overflow-hidden"
                   >
                     <Image
-                      src={image}
-                      alt={`Product ${index + 1}`}
+                      src={media.url}
+                      alt={`Product image ${index + 1}`}
                       fill
                       className="rounded-lg object-cover"
                     />
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(index)}
+                      onClick={() => handleRemoveExisting(media.id)}
                       className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <X className="h-4 w-4" />
@@ -269,7 +329,36 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                   </div>
                 ))}
 
-                {images.length < 8 && (
+                {newFilePreviews.map((preview, index) => (
+                  <div
+                    key={preview}
+                    className="group relative aspect-square rounded-lg border bg-muted overflow-hidden"
+                  >
+                    <Image
+                      src={preview}
+                      alt={`New image ${index + 1}`}
+                      fill
+                      className="rounded-lg object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveNewFile(index)}
+                      className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    {existingMedia.length === 0 && index === 0 && (
+                      <span className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-xs text-white">
+                        Cover
+                      </span>
+                    )}
+                    <span className="absolute bottom-1 right-1 rounded bg-primary/80 px-1 text-xs text-primary-foreground">
+                      New
+                    </span>
+                  </div>
+                ))}
+
+                {totalImages < MAX_IMAGES && (
                   <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary">
                     <Upload className="mb-2 h-6 w-6" />
                     <span className="text-xs">Add Image</span>

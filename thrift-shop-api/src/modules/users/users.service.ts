@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
 import { UpdateUserDto } from './dto';
 import { PAGINATION } from '../../common/constants';
+import { Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -186,7 +187,16 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { address: address as any },
+      // address is a nullable Json column: pass the object as JSON, use
+      // Prisma.JsonNull to clear it, and undefined to leave it unchanged.
+      data: {
+        address:
+          address === undefined
+            ? undefined
+            : address === null
+              ? Prisma.JsonNull
+              : address,
+      },
       select: {
         id: true,
         email: true,

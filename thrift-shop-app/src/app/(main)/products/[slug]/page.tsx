@@ -76,6 +76,19 @@ export default function ProductDetailPage() {
   
   const isWishlisted = product ? isSaved(product.id) : false;
 
+  // Clamp the selected quantity if availability drops (e.g. when the cart
+  // updates). Declared before any early return so hook order stays stable.
+  useEffect(() => {
+    if (!product || !cart) return;
+    const inCart =
+      cart.items.find((item) => item.productId === product.id)?.quantity || 0;
+    const available = Math.min(product.quantity - inCart, product.quantity);
+    if (quantity > available) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clamp derived UI state when availability shrinks
+      setQuantity(Math.max(1, available));
+    }
+  }, [product, cart, quantity]);
+
   if (isLoading) {
     return <DetailPageSkeleton />;
   }
@@ -112,15 +125,6 @@ export default function ProductDetailPage() {
         ((product.comparePrice! - product.price) / product.comparePrice!) * 100
       )
     : 0;
-
-  // Reset quantity when available quantity changes (e.g., when cart updates)
-  useEffect(() => {
-    if (product && cart) {
-      if (quantity > maxQuantity) {
-        setQuantity(Math.max(1, maxQuantity));
-      }
-    }
-  }, [maxQuantity, product, cart, quantity]);
 
   const handleQuantityChange = (delta: number) => {
     const newQuantity = quantity + delta;
@@ -160,7 +164,7 @@ export default function ProductDetailPage() {
           if (err instanceof Error) {
             console.error("Error details:", {
               message: err.message,
-              statusCode: (err as any).statusCode,
+              statusCode: (err as { statusCode?: number }).statusCode,
             });
           }
         },

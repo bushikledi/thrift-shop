@@ -76,10 +76,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     if (Array.isArray(arg)) {
       return this._client.$transaction(arg, options);
     }
-    return this._client.$transaction(
-      arg as (prisma: Prisma.TransactionClient) => Promise<T>,
-      options,
-    );
+    return this._client.$transaction(arg, options);
   }
 
   // For raw queries if needed - use with caution

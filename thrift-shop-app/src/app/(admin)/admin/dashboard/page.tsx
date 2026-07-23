@@ -11,10 +11,9 @@ import {
   Package,
   ShoppingCart,
   DollarSign,
-  TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
   AlertCircle,
+  ShieldCheck,
   Clock,
 } from "lucide-react";
 
@@ -50,69 +49,69 @@ export default function AdminDashboardPage() {
 
   const isLoading = statsLoading || usersLoading || ordersLoading;
 
-  // Platform stats
+  const newUsersThisMonth = stats?.newUsersThisMonth ?? 0;
+  const newOrdersThisMonth = stats?.newOrdersThisMonth ?? 0;
+  const pendingVendorVerifications = stats?.pendingVendorVerifications ?? 0;
+
+  // Platform stats (all values come from the real admin stats endpoint).
   const platformStats = [
     {
       title: "Total Revenue",
-      value: formatCurrency(stats?.totalRevenue || 0),
-      change: 0, // TODO: Add revenueChange to stats API
+      value: formatCurrency(Number(stats?.totalRevenue || 0)),
+      hint: "From delivered orders",
       icon: DollarSign,
       color: "text-green-500",
     },
     {
       title: "Total Users",
       value: (stats?.totalUsers || 0).toLocaleString(),
-      change: 0, // TODO: Add usersChange to stats API
+      hint: `+${newUsersThisMonth.toLocaleString()} this month`,
       icon: Users,
       color: "text-blue-500",
     },
     {
-      title: "Active Vendors",
+      title: "Vendors",
       value: (stats?.totalVendors || 0).toLocaleString(),
-      change: 0, // TODO: Add vendorsChange to stats API
+      hint: `${pendingVendorVerifications.toLocaleString()} pending verification`,
       icon: Store,
       color: "text-purple-500",
     },
     {
       title: "Total Orders",
       value: (stats?.totalOrders || 0).toLocaleString(),
-      change: 0, // TODO: Add ordersChange to stats API
+      hint: `+${newOrdersThisMonth.toLocaleString()} this month`,
       icon: ShoppingCart,
       color: "text-orange-500",
     },
     {
       title: "Total Products",
       value: (stats?.totalProducts || 0).toLocaleString(),
-      change: 0, // TODO: Add productsChange to stats API
+      hint: "Listed on the platform",
       icon: Package,
       color: "text-pink-500",
     },
     {
-      title: "Conversion Rate",
-      value: `${0}%`, // TODO: Add conversionRate to stats API
-      change: 0, // TODO: Add conversionChange to stats API
-      icon: TrendingUp,
+      title: "Pending Verifications",
+      value: pendingVendorVerifications.toLocaleString(),
+      hint: "Vendors awaiting review",
+      icon: ShieldCheck,
       color: "text-cyan-500",
     },
   ];
 
-  // Alerts/Issues that need attention
+  // Alerts derived from real data (only shown when actionable).
   const alerts = [
-    {
-      type: "warning",
-      message: "5 vendors pending verification",
-      link: "/admin/vendors?status=pending",
-    },
-    {
-      type: "warning",
-      message: "12 products flagged for review",
-      link: "/admin/products?status=flagged",
-    },
-    {
-      type: "info",
-      message: "3 orders require manual intervention",
-      link: "/admin/orders?status=issue",
-    },
+    ...(pendingVendorVerifications > 0
+      ? [
+          {
+            type: "warning" as const,
+            message: `${pendingVendorVerifications} vendor${
+              pendingVendorVerifications === 1 ? "" : "s"
+            } pending verification`,
+            link: "/admin/vendors",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -134,17 +133,10 @@ export default function AdminDashboardPage() {
               href={alert.link}
               className={cn(
                 "flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted",
-                alert.type === "warning" && "border-orange-200 bg-orange-50",
-                alert.type === "info" && "border-blue-200 bg-blue-50"
+                "border-orange-200 bg-orange-50"
               )}
             >
-              <AlertCircle
-                className={cn(
-                  "h-5 w-5",
-                  alert.type === "warning" && "text-orange-500",
-                  alert.type === "info" && "text-blue-500"
-                )}
-              />
+              <AlertCircle className="h-5 w-5 text-orange-500" />
               <span className="flex-1 text-sm">{alert.message}</span>
               <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
             </Link>
@@ -171,23 +163,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="flex items-center text-xs">
-                  {stat.change >= 0 ? (
-                    <ArrowUpRight className="mr-1 h-3 w-3 text-green-500" />
-                  ) : (
-                    <ArrowDownRight className="mr-1 h-3 w-3 text-red-500" />
-                  )}
-                  <span
-                    className={cn(
-                      stat.change >= 0 ? "text-green-500" : "text-red-500"
-                    )}
-                  >
-                    {Math.abs(stat.change)}%
-                  </span>
-                  <span className="ml-1 text-muted-foreground">
-                    from last month
-                  </span>
-                </div>
+                <p className="text-xs text-muted-foreground">{stat.hint}</p>
               </CardContent>
             </Card>
           ))}

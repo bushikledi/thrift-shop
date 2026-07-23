@@ -167,12 +167,10 @@ export class CartService {
     }
 
     // Check if requested quantity exceeds available stock
-    // Since there's a unique constraint on [sessionId, productId], 
+    // Since there's a unique constraint on [sessionId, productId],
     // this is the only cart item for this product in this session
     if (dto.quantity > item.product.quantity) {
-      throw new BadRequestException(
-        `Only ${item.product.quantity} available`,
-      );
+      throw new BadRequestException(`Only ${item.product.quantity} available`);
     }
 
     return this.prisma.cartItem.update({

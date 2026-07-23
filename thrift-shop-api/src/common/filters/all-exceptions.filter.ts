@@ -144,26 +144,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private mapStatusToErrorCode(status: number): string {
-    switch (status as HttpStatus) {
-      case HttpStatus.BAD_REQUEST:
-        return ErrorCode.BAD_REQUEST;
-      case HttpStatus.UNAUTHORIZED:
-        return ErrorCode.AUTHENTICATION_REQUIRED;
-      case HttpStatus.FORBIDDEN:
-        return ErrorCode.PERMISSION_DENIED;
-      case HttpStatus.NOT_FOUND:
-        return ErrorCode.RESOURCE_NOT_FOUND;
-      case HttpStatus.CONFLICT:
-        return ErrorCode.RESOURCE_CONFLICT;
-      case HttpStatus.UNPROCESSABLE_ENTITY:
-        return ErrorCode.VALIDATION_ERROR;
-      case HttpStatus.TOO_MANY_REQUESTS:
-        return ErrorCode.RATE_LIMIT_EXCEEDED;
-      case HttpStatus.SERVICE_UNAVAILABLE:
-        return ErrorCode.SERVICE_UNAVAILABLE;
-      default:
-        return status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.BAD_REQUEST;
-    }
+    // Keyed by numeric HTTP status to avoid comparing a plain number against
+    // HttpStatus enum members (no-unsafe-enum-comparison).
+    const statusToErrorCode: Record<number, string> = {
+      [HttpStatus.BAD_REQUEST]: ErrorCode.BAD_REQUEST,
+      [HttpStatus.UNAUTHORIZED]: ErrorCode.AUTHENTICATION_REQUIRED,
+      [HttpStatus.FORBIDDEN]: ErrorCode.PERMISSION_DENIED,
+      [HttpStatus.NOT_FOUND]: ErrorCode.RESOURCE_NOT_FOUND,
+      [HttpStatus.CONFLICT]: ErrorCode.RESOURCE_CONFLICT,
+      [HttpStatus.UNPROCESSABLE_ENTITY]: ErrorCode.VALIDATION_ERROR,
+      [HttpStatus.TOO_MANY_REQUESTS]: ErrorCode.RATE_LIMIT_EXCEEDED,
+      [HttpStatus.SERVICE_UNAVAILABLE]: ErrorCode.SERVICE_UNAVAILABLE,
+    };
+
+    return (
+      statusToErrorCode[status] ??
+      (status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.BAD_REQUEST)
+    );
   }
 
   private isPrismaError(exception: unknown): boolean {
@@ -172,7 +169,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       typeof exception === 'object' &&
       'code' in exception
     ) {
-      const code = (exception as { code: unknown }).code;
+      const code = exception.code;
       return typeof code === 'string' && code.startsWith('P');
     }
     return false;

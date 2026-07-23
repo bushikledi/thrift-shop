@@ -1,26 +1,27 @@
 /**
  * Admin Reviews Page
- * Moderate and manage platform reviews
+ * Browse and manage platform reviews.
+ *
+ * Note: the backend currently exposes review listing + deletion only. There is
+ * no server-side moderation state (approve/flag), so this page surfaces the real
+ * data (reviewer, product, rating, verified-purchase flag) and supports deletion.
+ * A full moderation workflow (approve/flag with a persisted status) is tracked as
+ * a follow-up once the API gains a review moderation status.
  */
 "use client";
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
 import {
   Search,
   MoreHorizontal,
   Star,
-  Flag,
   Trash2,
   Eye,
-  CheckCircle,
-  AlertTriangle,
   MessageSquare,
-  ThumbsUp,
-  Package,
+  BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,7 +59,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAdminReviews, useAdminDeleteReview } from "@/hooks/useAdmin";
@@ -75,32 +75,44 @@ const PAGE_SIZE = 15;
 interface Review {
   id: string;
   rating: number;
-  title?: string;
-  comment: string;
-  status: "pending" | "approved" | "flagged" | "removed";
+  title?: string | null;
+  comment?: string | null;
+  isVerified: boolean;
   createdAt: string;
   user: {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    avatar?: string;
-  };
-  product: {
-    id: string;
     name: string;
-    slug: string;
-    images?: string[];
+    email: string;
+    avatar?: string | null;
   };
-  helpfulCount?: number;
-  reportCount?: number;
+  product?: {
+    id: string;
+    title: string;
+    slug: string;
+  } | null;
+  vendor?: {
+    id: string;
+    displayName: string;
+  } | null;
 }
 
-const statusOptions = [
-  { value: "all", label: "All Status" },
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "flagged", label: "Flagged" },
+/** Raw review shape returned by the admin API. */
+interface ApiReview {
+  id: string;
+  rating: number;
+  title?: string | null;
+  comment?: string | null;
+  isVerified?: boolean;
+  createdAt: string;
+  user?: { id: string; name: string; email: string; avatar?: string | null };
+  product?: { id: string; title: string; slug: string } | null;
+  vendor?: { id: string; displayName: string } | null;
+}
+
+const verifiedOptions = [
+  { value: "all", label: "All Reviews" },
+  { value: "verified", label: "Verified purchase" },
+  { value: "unverified", label: "Unverified" },
 ];
 
 const ratingOptions = [
@@ -112,18 +124,14 @@ const ratingOptions = [
   { value: "1", label: "1 Star" },
 ];
 
-const statusConfig: Record<
-  Review["status"],
-  {
-    label: string;
-    variant: "default" | "secondary" | "destructive" | "outline";
-  }
-> = {
-  pending: { label: "Pending", variant: "outline" },
-  approved: { label: "Approved", variant: "default" },
-  flagged: { label: "Flagged", variant: "destructive" },
-  removed: { label: "Removed", variant: "secondary" },
-};
+function initialsFromName(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 function StarRating({
   rating,
@@ -151,12 +159,13 @@ export default function AdminReviewsPage() {
   const searchParams = useSearchParams();
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const [status, setStatus] = useState(searchParams.get("status") || "all");
+  const [verified, setVerified] = useState(
+    searchParams.get("verified") || "all"
+  );
   const [rating, setRating] = useState(searchParams.get("rating") || "all");
   const [page, setPage] = useState(
     parseInt(searchParams.get("page") || "1", 10)
   );
-  const [activeTab, setActiveTab] = useState("all");
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [deleteReview, setDeleteReview] = useState<Review | null>(null);
 
@@ -169,95 +178,68 @@ export default function AdminReviewsPage() {
 
   const deleteReviewMutation = useAdminDeleteReview();
 
-  // Mock reviews for demo - in real app, this comes from the API
-  const reviewsData = Array.isArray(data)
-    ? data
-    : (
-        data as unknown as {
-          data?: Review[];
-          meta?: { totalPages?: number; total?: number };
-        }
-      )?.data || [];
-  const reviews: Review[] = reviewsData.map((r) => ({
-    ...r,
-    status: "approved" as const,
-    comment: r.comment || "",
-    user: {
-      id: "",
-      firstName: "",
-      lastName: "",
-      email: "",
-    },
-    product: {
-      id: "",
-      name: "",
-      slug: "",
-    },
-  }));
-  const totalPages =
-    (data as unknown as { meta?: { totalPages?: number } })?.meta?.totalPages || 1;
-  const totalItems =
-    (data as { meta?: { total?: number } })?.meta?.total || reviews.length;
+  const response = data as unknown as {
+    data?: ApiReview[];
+    meta?: { totalPages?: number; total?: number };
+  };
+  const rawReviews: ApiReview[] = Array.isArray(data)
+    ? (data as unknown as ApiReview[])
+    : response?.data || [];
 
-  // Filter reviews
+  const reviews: Review[] = rawReviews.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    title: r.title ?? null,
+    comment: r.comment ?? null,
+    isVerified: Boolean(r.isVerified),
+    createdAt: r.createdAt,
+    user: {
+      id: r.user?.id ?? "",
+      name: r.user?.name ?? "Unknown user",
+      email: r.user?.email ?? "",
+      avatar: r.user?.avatar ?? null,
+    },
+    product: r.product ?? null,
+    vendor: r.vendor ?? null,
+  }));
+
+  const totalPages = response?.meta?.totalPages || 1;
+  const totalItems = response?.meta?.total || reviews.length;
+
+  // Client-side refinement of the current page.
   const filteredReviews = reviews.filter((review) => {
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
       if (
         !review.comment?.toLowerCase().includes(searchLower) &&
-        !review.user?.firstName?.toLowerCase().includes(searchLower) &&
-        !review.user?.lastName?.toLowerCase().includes(searchLower) &&
-        !review.product?.name?.toLowerCase().includes(searchLower)
+        !review.title?.toLowerCase().includes(searchLower) &&
+        !review.user.name.toLowerCase().includes(searchLower) &&
+        !review.product?.title?.toLowerCase().includes(searchLower)
       ) {
         return false;
       }
     }
-    if (status !== "all" && review.status !== status) {
+    if (verified === "verified" && !review.isVerified) {
+      return false;
+    }
+    if (verified === "unverified" && review.isVerified) {
       return false;
     }
     if (rating !== "all" && review.rating !== parseInt(rating, 10)) {
       return false;
     }
-    if (activeTab === "flagged" && review.status !== "flagged") {
-      return false;
-    }
-    if (activeTab === "pending" && review.status !== "pending") {
-      return false;
-    }
     return true;
   });
 
-  // Stats
+  // Stats for the current page of reviews.
   const stats = {
-    total: reviews.length,
-    flagged: reviews.filter((r) => r.status === "flagged").length,
-    pending: reviews.filter((r) => r.status === "pending").length,
+    total: totalItems,
+    verified: reviews.filter((r) => r.isVerified).length,
+    unverified: reviews.filter((r) => !r.isVerified).length,
     avgRating:
       reviews.length > 0
         ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
         : 0,
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleApproveReview = async (_review: Review) => {
-    try {
-      // This would call an API to approve the review
-      toast.success("Review approved");
-      setSelectedReview(null);
-    } catch {
-      toast.error("Failed to approve review");
-    }
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleFlagReview = async (_review: Review) => {
-    try {
-      // This would call an API to flag the review
-      toast.success("Review flagged for further review");
-      setSelectedReview(null);
-    } catch {
-      toast.error("Failed to flag review");
-    }
   };
 
   const handleDeleteReview = async () => {
@@ -278,14 +260,9 @@ export default function AdminReviewsPage() {
         <div>
           <h1 className="text-3xl font-bold">Reviews</h1>
           <p className="text-muted-foreground">
-            Moderate and manage customer reviews
+            Browse and manage customer reviews
           </p>
         </div>
-        {stats.flagged > 0 && (
-          <Badge variant="destructive" className="text-sm">
-            {stats.flagged} flagged reviews
-          </Badge>
-        )}
       </div>
 
       {/* Stats Cards */}
@@ -303,7 +280,9 @@ export default function AdminReviewsPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-yellow-500" />
-              <p className="text-sm text-muted-foreground">Average Rating</p>
+              <p className="text-sm text-muted-foreground">
+                Avg Rating (page)
+              </p>
             </div>
             <p className="text-2xl font-bold">{stats.avgRating.toFixed(1)}</p>
           </CardContent>
@@ -311,129 +290,74 @@ export default function AdminReviewsPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <p className="text-sm text-muted-foreground">Pending</p>
+              <BadgeCheck className="h-4 w-4 text-green-600" />
+              <p className="text-sm text-muted-foreground">
+                Verified (page)
+              </p>
             </div>
-            <p className="text-2xl font-bold">{stats.pending}</p>
+            <p className="text-2xl font-bold">{stats.verified}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Flag className="h-4 w-4 text-red-600" />
-              <p className="text-sm text-muted-foreground">Flagged</p>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Unverified (page)
+              </p>
             </div>
-            <p className="text-2xl font-bold">{stats.flagged}</p>
+            <p className="text-2xl font-bold">{stats.unverified}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all">All Reviews</TabsTrigger>
-          <TabsTrigger value="pending" className="relative">
-            Pending
-            {stats.pending > 0 && (
-              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 text-xs text-white">
-                {stats.pending}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="flagged" className="relative">
-            Flagged
-            {stats.flagged > 0 && (
-              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                {stats.flagged}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Filters */}
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search reviews..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={rating} onValueChange={setRating}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Rating" />
-            </SelectTrigger>
-            <SelectContent>
-              {ratingOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {activeTab === "all" && (
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+      {/* Filters */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search reviews..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
+        <Select value={rating} onValueChange={setRating}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Rating" />
+          </SelectTrigger>
+          <SelectContent>
+            {ratingOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={verified} onValueChange={setVerified}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Verification" />
+          </SelectTrigger>
+          <SelectContent>
+            {verifiedOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <TabsContent value="all" className="mt-4">
-          <ReviewsTable
-            reviews={filteredReviews}
-            isLoading={isLoading}
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onView={setSelectedReview}
-            onApprove={handleApproveReview}
-            onFlag={handleFlagReview}
-            onDelete={setDeleteReview}
-          />
-        </TabsContent>
-
-        <TabsContent value="pending" className="mt-4">
-          <ReviewsTable
-            reviews={filteredReviews}
-            isLoading={isLoading}
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onView={setSelectedReview}
-            onApprove={handleApproveReview}
-            onFlag={handleFlagReview}
-            onDelete={setDeleteReview}
-          />
-        </TabsContent>
-
-        <TabsContent value="flagged" className="mt-4">
-          <ReviewsTable
-            reviews={filteredReviews}
-            isLoading={isLoading}
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            onPageChange={setPage}
-            onView={setSelectedReview}
-            onApprove={handleApproveReview}
-            onFlag={handleFlagReview}
-            onDelete={setDeleteReview}
-          />
-        </TabsContent>
-      </Tabs>
+      <ReviewsTable
+        reviews={filteredReviews}
+        isLoading={isLoading}
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPageChange={setPage}
+        onView={setSelectedReview}
+        onDelete={setDeleteReview}
+      />
 
       {/* Review Detail Dialog */}
       <Dialog
@@ -449,59 +373,43 @@ export default function AdminReviewsPage() {
               {/* Reviewer */}
               <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={selectedReview.user?.avatar} />
+                  <AvatarImage src={selectedReview.user.avatar ?? undefined} />
                   <AvatarFallback>
-                    {selectedReview.user?.firstName?.[0]}
-                    {selectedReview.user?.lastName?.[0]}
+                    {initialsFromName(selectedReview.user.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-medium">
-                    {selectedReview.user?.firstName}{" "}
-                    {selectedReview.user?.lastName}
-                  </p>
+                  <p className="font-medium">{selectedReview.user.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {selectedReview.user?.email}
+                    {selectedReview.user.email}
                   </p>
                 </div>
-                <Badge variant={statusConfig[selectedReview.status]?.variant}>
-                  {statusConfig[selectedReview.status]?.label}
-                </Badge>
+                {selectedReview.isVerified && (
+                  <Badge variant="default">
+                    <BadgeCheck className="mr-1 h-3.5 w-3.5" />
+                    Verified purchase
+                  </Badge>
+                )}
               </div>
 
               <Separator />
 
-              {/* Product */}
+              {/* Product / Vendor */}
               <div>
-                <h4 className="text-sm font-medium mb-2">Product</h4>
-                <div className="flex items-center gap-3">
-                  <div className="relative h-16 w-16 rounded-lg bg-muted overflow-hidden">
-                    {selectedReview.product?.images?.[0] ? (
-                      <Image
-                        src={selectedReview.product.images[0]}
-                        alt={selectedReview.product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <Package className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {selectedReview.product?.name}
-                    </p>
-                    <Link
-                      href={`/products/${selectedReview.product?.slug}`}
-                      target="_blank"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View Product
-                    </Link>
-                  </div>
-                </div>
+                <h4 className="text-sm font-medium mb-2">Subject</h4>
+                {selectedReview.product ? (
+                  <Link
+                    href={`/products/${selectedReview.product.slug}`}
+                    target="_blank"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {selectedReview.product.title}
+                  </Link>
+                ) : selectedReview.vendor ? (
+                  <p className="text-sm">{selectedReview.vendor.displayName}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
               </div>
 
               <Separator />
@@ -518,20 +426,8 @@ export default function AdminReviewsPage() {
                   <h3 className="font-semibold mb-2">{selectedReview.title}</h3>
                 )}
                 <p className="text-muted-foreground whitespace-pre-wrap">
-                  {selectedReview.comment}
+                  {selectedReview.comment || "No comment provided."}
                 </p>
-              </div>
-
-              {/* Stats */}
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <ThumbsUp className="h-4 w-4" />
-                  {selectedReview.helpfulCount || 0} found helpful
-                </div>
-                <div className="flex items-center gap-1">
-                  <Flag className="h-4 w-4" />
-                  {selectedReview.reportCount || 0} reports
-                </div>
               </div>
             </div>
           )}
@@ -539,19 +435,16 @@ export default function AdminReviewsPage() {
             <Button variant="outline" onClick={() => setSelectedReview(null)}>
               Close
             </Button>
-            {selectedReview?.status === "pending" && (
-              <Button onClick={() => handleApproveReview(selectedReview)}>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Approve
-              </Button>
-            )}
-            {selectedReview?.status !== "flagged" && (
+            {selectedReview && (
               <Button
-                variant="outline"
-                onClick={() => handleFlagReview(selectedReview!)}
+                variant="destructive"
+                onClick={() => {
+                  setDeleteReview(selectedReview);
+                  setSelectedReview(null);
+                }}
               >
-                <Flag className="mr-2 h-4 w-4" />
-                Flag
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
               </Button>
             )}
           </DialogFooter>
@@ -579,8 +472,6 @@ function ReviewsTable({
   totalItems,
   onPageChange,
   onView,
-  onApprove,
-  onFlag,
   onDelete,
 }: {
   reviews: Review[];
@@ -590,8 +481,6 @@ function ReviewsTable({
   totalItems: number;
   onPageChange: (page: number) => void;
   onView: (review: Review) => void;
-  onApprove: (review: Review) => void;
-  onFlag: (review: Review) => void;
   onDelete: (review: Review) => void;
 }) {
   if (isLoading) {
@@ -618,7 +507,7 @@ function ReviewsTable({
               <TableHead>Product</TableHead>
               <TableHead>Rating</TableHead>
               <TableHead>Review</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Verified</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -629,37 +518,49 @@ function ReviewsTable({
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={review.user?.avatar} />
+                      <AvatarImage src={review.user.avatar ?? undefined} />
                       <AvatarFallback>
-                        {review.user?.firstName?.[0]}
-                        {review.user?.lastName?.[0]}
+                        {initialsFromName(review.user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium">
-                      {review.user?.firstName} {review.user?.lastName}
+                      {review.user.name}
                     </span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Link
-                    href={`/products/${review.product?.slug}`}
-                    className="text-sm text-primary hover:underline line-clamp-1"
-                  >
-                    {review.product?.name}
-                  </Link>
+                  {review.product ? (
+                    <Link
+                      href={`/products/${review.product.slug}`}
+                      className="text-sm text-primary hover:underline line-clamp-1"
+                    >
+                      {review.product.title}
+                    </Link>
+                  ) : review.vendor ? (
+                    <span className="text-sm text-muted-foreground line-clamp-1">
+                      {review.vendor.displayName}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <StarRating rating={review.rating} />
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-muted-foreground line-clamp-2 max-w-[200px]">
-                    {review.comment}
+                    {review.comment || "—"}
                   </p>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusConfig[review.status]?.variant}>
-                    {statusConfig[review.status]?.label}
-                  </Badge>
+                  {review.isVerified ? (
+                    <Badge variant="default">
+                      <BadgeCheck className="mr-1 h-3.5 w-3.5" />
+                      Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Unverified</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {review.createdAt
@@ -678,18 +579,6 @@ function ReviewsTable({
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      {review.status === "pending" && (
-                        <DropdownMenuItem onClick={() => onApprove(review)}>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Approve
-                        </DropdownMenuItem>
-                      )}
-                      {review.status !== "flagged" && (
-                        <DropdownMenuItem onClick={() => onFlag(review)}>
-                          <Flag className="mr-2 h-4 w-4" />
-                          Flag
-                        </DropdownMenuItem>
-                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"

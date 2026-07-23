@@ -2,12 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma';
 import { CreateMediaDto, MediaQueryDto } from './dto';
-import { MediaOwnerType, Prisma } from '../../generated/prisma/client';
+import {
+  MediaOwnerType,
+  Prisma,
+  UserRole,
+} from '../../generated/prisma/client';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { MEDIA } from '../../common/constants';
@@ -24,6 +29,12 @@ interface UploadedFile {
   mimetype: string;
   size: number;
   buffer: Buffer;
+}
+
+/** Minimal authenticated-user context needed for media ownership checks. */
+export interface MediaUser {
+  id: string;
+  role: UserRole;
 }
 
 interface UploadResult {
@@ -181,9 +192,9 @@ export class MediaService {
     };
   }
 
-  async create(file: UploadedFile, dto: CreateMediaDto) {
-    // Validate owner exists
-    await this.validateOwner(dto.ownerType, dto.ownerId);
+  async create(file: UploadedFile, dto: CreateMediaDto, user: MediaUser) {
+    // Verify the owner exists and the current user is allowed to attach media to it
+    await this.authorizeOwner(dto.ownerType, dto.ownerId, user);
 
     // Upload file
     const uploadResult = await this.upload(file, dto);
@@ -213,9 +224,13 @@ export class MediaService {
     });
   }
 
-  async createMany(files: UploadedFile[], dto: CreateMediaDto) {
-    // Validate owner exists
-    await this.validateOwner(dto.ownerType, dto.ownerId);
+  async createMany(
+    files: UploadedFile[],
+    dto: CreateMediaDto,
+    user: MediaUser,
+  ) {
+    // Verify the owner exists and the current user is allowed to attach media to it
+    await this.authorizeOwner(dto.ownerType, dto.ownerId, user);
 
     // Get current max sort order once (optimization)
     const lastMedia = await this.prisma.media.findFirst({
@@ -261,8 +276,11 @@ export class MediaService {
     });
   }
 
-  async delete(id: string) {
+  async delete(id: string, user: MediaUser) {
     const media = await this.findById(id);
+
+    // Only the media owner (or an admin) may delete it
+    await this.authorizeOwner(media.ownerType, media.ownerId, user);
 
     // Delete from S3 if client is configured
     if (this.s3Client && media.filename) {
@@ -321,40 +339,82 @@ export class MediaService {
     });
   }
 
-  private async validateOwner(ownerType: MediaOwnerType, ownerId: string) {
-    let exists = false;
+  /**
+   * Verify the owner entity exists AND that the current user is allowed to
+   * manage media for it. Admins may manage any media; otherwise a user may only
+   * manage media for products they vend, their own vendor profile, or their own
+   * user record. Category media is admin-only.
+   */
+  private async authorizeOwner(
+    ownerType: MediaOwnerType,
+    ownerId: string,
+    user: MediaUser,
+  ) {
+    const isAdmin = user.role === UserRole.ADMIN;
 
     switch (ownerType) {
-      case MediaOwnerType.PRODUCT:
-        exists = !!(await this.prisma.product.findUnique({
+      case MediaOwnerType.PRODUCT: {
+        const product = await this.prisma.product.findUnique({
           where: { id: ownerId },
-        }));
+          select: { vendor: { select: { userId: true } } },
+        });
+        if (!product) {
+          throw new NotFoundException('PRODUCT not found');
+        }
+        if (!isAdmin && product.vendor.userId !== user.id) {
+          throw new ForbiddenException(
+            'You are not allowed to manage media for this product',
+          );
+        }
         break;
-      case MediaOwnerType.VENDOR:
-        exists = !!(await this.prisma.vendor.findUnique({
+      }
+      case MediaOwnerType.VENDOR: {
+        const vendor = await this.prisma.vendor.findUnique({
           where: { id: ownerId },
-        }));
+          select: { userId: true },
+        });
+        if (!vendor) {
+          throw new NotFoundException('VENDOR not found');
+        }
+        if (!isAdmin && vendor.userId !== user.id) {
+          throw new ForbiddenException(
+            'You are not allowed to manage media for this vendor',
+          );
+        }
         break;
-      case MediaOwnerType.USER:
-        exists = !!(await this.prisma.user.findUnique({
+      }
+      case MediaOwnerType.USER: {
+        const owner = await this.prisma.user.findUnique({
           where: { id: ownerId },
-        }));
+          select: { id: true },
+        });
+        if (!owner) {
+          throw new NotFoundException('USER not found');
+        }
+        if (!isAdmin && owner.id !== user.id) {
+          throw new ForbiddenException('You can only manage your own media');
+        }
         break;
-      case MediaOwnerType.CATEGORY:
-        exists = !!(await this.prisma.category.findUnique({
+      }
+      case MediaOwnerType.CATEGORY: {
+        const category = await this.prisma.category.findUnique({
           where: { id: ownerId },
-        }));
+          select: { id: true },
+        });
+        if (!category) {
+          throw new NotFoundException('CATEGORY not found');
+        }
+        if (!isAdmin) {
+          throw new ForbiddenException('Only admins can manage category media');
+        }
         break;
-    }
-
-    if (!exists) {
-      throw new NotFoundException(`${ownerType} not found`);
+      }
     }
   }
 
   // Generate a pre-signed URL for direct uploads (useful for large files)
-  async getUploadUrl(dto: CreateMediaDto, filename: string) {
-    await this.validateOwner(dto.ownerType, dto.ownerId);
+  async getUploadUrl(dto: CreateMediaDto, filename: string, user: MediaUser) {
+    await this.authorizeOwner(dto.ownerType, dto.ownerId, user);
 
     const ext = path.extname(filename);
     const hash = crypto.randomBytes(8).toString('hex');

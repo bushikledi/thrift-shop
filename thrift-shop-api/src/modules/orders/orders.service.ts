@@ -65,12 +65,18 @@ export class OrdersService {
   ) {}
 
   /**
+   * Default assumed per-item weight in grams. Products do not currently track a
+   * per-item weight, so shipping uses this estimate for the weight component.
+   */
+  private static readonly DEFAULT_ITEM_WEIGHT_GRAMS = 200;
+
+  /**
    * Calculate shipping cost based on items, method, and address
    */
   private calculateShipping(
     items: Array<{
       quantity: number;
-      product: { price: Prisma.Decimal; weight?: number | null };
+      product: { price: Prisma.Decimal };
     }>,
     shippingMethod: string,
     subtotal: number,
@@ -91,11 +97,8 @@ export class OrdersService {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     shipping += totalItems * shippingConfig.perItemRate;
 
-    // Add weight-based charge if available
-    const totalWeight = items.reduce(
-      (sum, item) => sum + (item.product.weight || 200) * item.quantity,
-      0,
-    );
+    // Add weight-based charge using the default per-item weight estimate.
+    const totalWeight = totalItems * OrdersService.DEFAULT_ITEM_WEIGHT_GRAMS;
     shipping += (totalWeight / 100) * shippingConfig.weightRate;
 
     // Apply shipping method multiplier
@@ -194,7 +197,7 @@ export class OrdersService {
           // Use the OrderNumberService for atomic generation
           const orderNumber = await this.orderNumberService.generate();
 
-          const order = (await tx.order.create({
+          const order = await tx.order.create({
             data: {
               orderNumber,
               buyerId: userId,
@@ -223,7 +226,7 @@ export class OrdersService {
                 select: { id: true, displayName: true },
               },
             },
-          })) as OrderWithVendorAndItems;
+          });
 
           createdOrders.push(order);
 
