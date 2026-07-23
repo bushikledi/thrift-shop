@@ -213,3 +213,14 @@ export function usePrefetchVendor() {
     });
   };
 }
+
+/**
+ * Store analytics for a rolling window (vendor only).
+ */
+export function useMyVendorAnalytics(days = 30) {
+  return useQuery({
+    queryKey: queryKeys.vendors.me.analytics(days),
+    queryFn: () => vendorsApi.getMyAnalytics(days),
+    staleTime: 5 * 60 * 1000,
+  });
+}

@@ -31,6 +31,11 @@ import {
   AdminStatsResponseDto,
   AuditLogResponseDto,
   AdminReviewResponseDto,
+  FlagProductDto,
+  AnalyticsQueryDto,
+  AdminAnalyticsResponseDto,
+  UpdatePlatformSettingsDto,
+  PlatformSettingsResponseDto,
 } from './dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { RolesGuard } from '../../common/guards';
@@ -311,5 +316,99 @@ export class AdminController {
     @Query('limit') limit?: number,
   ) {
     return this.adminService.getAuditLogs(page || 1, limit || 50);
+  }
+
+  @Post('products/:id/flag')
+  @ApiOperation({
+    summary: 'Flag a product for review',
+    description: 'Records the reason and deactivates the listing.',
+  })
+  @ApiResponse({ status: 201, description: 'Product flagged' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async flagProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FlagProductDto,
+  ) {
+    return this.adminService.flagProduct(id, dto.reason);
+  }
+
+  @Post('products/:id/unflag')
+  @ApiOperation({
+    summary: 'Clear a product flag',
+    description: 'Removes the flag and restores the listing.',
+  })
+  @ApiResponse({ status: 201, description: 'Flag cleared' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async unflagProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.unflagProduct(id);
+  }
+
+  @Delete('products/:id')
+  @ApiOperation({
+    summary: 'Delete a product',
+    description:
+      'Rejected with 409 when the product appears in existing orders, since ' +
+      'deleting it would destroy purchase history.',
+  })
+  @ApiResponse({ status: 200, description: 'Product deleted' })
+  @ApiNotFoundResponse({
+    description: 'Product not found',
+    type: ErrorResponseDto,
+  })
+  async deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.deleteProduct(id);
+  }
+
+  @Get('analytics')
+  @ApiOperation({
+    summary: 'Platform analytics',
+    description:
+      'Daily revenue/order series plus top categories and vendors for the ' +
+      'requested window. Days without activity are returned as zeroes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics for the requested window',
+    type: AdminAnalyticsResponseDto,
+  })
+  async getAnalytics(@Query() query: AnalyticsQueryDto) {
+    return this.adminService.getAnalytics(query.days ?? 30);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Platform settings
+  // ---------------------------------------------------------------------------
+
+  @Get('settings')
+  @ApiOperation({ summary: 'Get platform settings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current platform settings',
+    type: PlatformSettingsResponseDto,
+  })
+  async getSettings() {
+    return this.adminService.getPlatformSettings();
+  }
+
+  @Put('settings')
+  @ApiOperation({
+    summary: 'Update platform settings',
+    description:
+      'Enabling maintenance mode makes the API reject shopping traffic with ' +
+      '503 while leaving authentication and admin routes reachable.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated platform settings',
+    type: PlatformSettingsResponseDto,
+  })
+  async updateSettings(@Body() dto: UpdatePlatformSettingsDto) {
+    return this.adminService.updatePlatformSettings(dto);
   }
 }

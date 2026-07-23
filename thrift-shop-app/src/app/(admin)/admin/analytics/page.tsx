@@ -6,19 +6,16 @@
 
 import { useState } from "react";
 import {
-  BarChart3,
   TrendingUp,
   TrendingDown,
   Users,
   ShoppingCart,
   DollarSign,
-  Package,
   Store,
 } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -29,13 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAdminStats } from "@/hooks/useAdmin";
+import { useAdminStats, useAdminAnalytics } from "@/hooks/useAdmin";
+import { TimeSeriesChart, RankedBarChart } from "@/components/charts";
 import { LoadingSkeleton } from "@/components/shared";
 import { formatCurrency } from "@/lib/utils";
 
 export default function AdminAnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");
+  // The selector drives the analytics window, so changing it refetches.
+  const days = timeRange === "7d" ? 7 : timeRange === "90d" ? 90 : 30;
   const { data: stats, isLoading } = useAdminStats();
+  const { data: analytics } = useAdminAnalytics(days);
 
   if (isLoading) {
     return (
@@ -136,73 +137,39 @@ export default function AdminAnalyticsPage() {
         ))}
       </div>
 
-      {/* Charts Placeholder */}
+      {/* Charts. Revenue and orders are separate charts on purpose: they are
+          different scales, and a shared axis would imply a relationship the
+          data does not support. */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Revenue over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Chart visualization coming soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Status Distribution</CardTitle>
-            <CardDescription>Orders by status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-              <div className="text-center">
-                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Chart visualization coming soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <TimeSeriesChart
+          title="Revenue"
+          description={`Delivered-order revenue, last ${days} days`}
+          data={analytics?.series ?? []}
+          metric="revenue"
+          format={formatCurrency}
+        />
+        <TimeSeriesChart
+          title="Orders"
+          description={`Orders placed, last ${days} days`}
+          data={analytics?.series ?? []}
+          metric="orders"
+          format={(value) => value.toLocaleString()}
+        />
       </div>
 
-      {/* Additional Stats */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Categories</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Category analytics coming soon</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Vendors</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Vendor performance coming soon</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>User Growth</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>Growth metrics coming soon</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <RankedBarChart
+          title="Top Categories"
+          description="By revenue in this period"
+          data={analytics?.topCategories ?? []}
+          format={formatCurrency}
+        />
+        <RankedBarChart
+          title="Top Vendors"
+          description="By revenue in this period"
+          data={analytics?.topVendors ?? []}
+          format={formatCurrency}
+        />
       </div>
     </div>
   );

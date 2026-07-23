@@ -19,3 +19,4 @@ export { healthApi } from "./health";
 
 // Re-export API client utilities
 export { apiClient, ApiError, get, post, put, del, upload } from "../apiClient";
+export * from "./promo";

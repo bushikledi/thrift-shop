@@ -245,6 +245,30 @@ export class VendorsController {
     );
   }
 
+  @Get('me/analytics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Store analytics',
+    description:
+      'Daily revenue/order series and best-selling products for the window.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics for the requested window',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Not authenticated',
+    type: ErrorResponseDto,
+  })
+  async getMyAnalytics(
+    @CurrentUser() user: { vendor: { id: string } },
+    @Query('days') days?: number,
+  ) {
+    return this.vendorsService.getAnalytics(user.vendor.id, Number(days) || 30);
+  }
+
   // ---------------------------------------------------------------------------
   // Public storefront lookups by vendor slug.
   //

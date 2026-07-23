@@ -18,6 +18,37 @@ import type {
   PaginationParams,
 } from "@/types";
 
+export interface PlatformSettings {
+  siteName: string;
+  siteDescription: string | null;
+  supportEmail: string | null;
+  maintenanceMode: boolean;
+  updatedAt: string;
+}
+
+export type UpdatePlatformSettings = Partial<
+  Omit<PlatformSettings, "updatedAt">
+>;
+
+export interface AnalyticsSeriesPoint {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AnalyticsNamedTotal {
+  name: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminAnalytics {
+  days: number;
+  series: AnalyticsSeriesPoint[];
+  topCategories: AnalyticsNamedTotal[];
+  topVendors: AnalyticsNamedTotal[];
+}
+
 export const adminApi = {
   // === Stats ===
   /**
@@ -135,6 +166,35 @@ export const adminApi = {
    */
   getAuditLogs: (params: PaginationParams): Promise<AuditLogResponseDto[]> =>
     get<AuditLogResponseDto[]>("/admin/audit-logs", { params }),
+
+  /**
+   * Platform settings
+   */
+  getSettings: (): Promise<PlatformSettings> =>
+    get<PlatformSettings>("/admin/settings"),
+
+  updateSettings: (
+    data: UpdatePlatformSettings
+  ): Promise<PlatformSettings> =>
+    put<PlatformSettings, UpdatePlatformSettings>("/admin/settings", data),
+
+  /**
+   * Product moderation
+   */
+  flagProduct: (id: string, reason: string): Promise<unknown> =>
+    post<unknown, { reason: string }>(`/admin/products/${id}/flag`, { reason }),
+
+  unflagProduct: (id: string): Promise<unknown> =>
+    post<unknown, undefined>(`/admin/products/${id}/unflag`, undefined),
+
+  deleteProduct: (id: string): Promise<{ message: string }> =>
+    del<{ message: string }>(`/admin/products/${id}`),
+
+  /**
+   * Platform analytics for a rolling window
+   */
+  getAnalytics: (days = 30): Promise<AdminAnalytics> =>
+    get<AdminAnalytics>("/admin/analytics", { params: { days } }),
 };
 
 export default adminApi;

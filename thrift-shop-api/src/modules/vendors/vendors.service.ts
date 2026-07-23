@@ -332,4 +332,75 @@ export class VendorsService {
       },
     };
   }
+
+  /**
+   * Store analytics for the last `days` days, scoped to one vendor.
+   *
+   * Mirrors the admin report: revenue counts DELIVERED orders, the order count
+   * covers everything placed, and quiet days are returned as zeroes so the
+   * series is continuous.
+   */
+  async getAnalytics(vendorId: string, days = 30) {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - (days - 1));
+    since.setUTCHours(0, 0, 0, 0);
+
+    const [rows, topProducts] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{ day: Date; revenue: number | null; orders: bigint }>
+      >`
+        SELECT date_trunc('day', created_at) AS day,
+               SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END) AS revenue,
+               COUNT(*) AS orders
+        FROM orders
+        WHERE vendor_id = ${vendorId} AND created_at >= ${since}
+        GROUP BY day
+        ORDER BY day ASC
+      `,
+      this.prisma.$queryRaw<
+        Array<{ name: string; revenue: number | null; orders: bigint }>
+      >`
+        SELECT oi.title AS name,
+               SUM(oi.price * oi.quantity) AS revenue,
+               COUNT(DISTINCT o.id) AS orders
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.vendor_id = ${vendorId} AND o.created_at >= ${since}
+        GROUP BY oi.title
+        ORDER BY revenue DESC NULLS LAST
+        LIMIT 8
+      `,
+    ]);
+
+    const byDay = new Map<string, { revenue: number; orders: number }>();
+    for (const row of rows) {
+      byDay.set(row.day.toISOString().slice(0, 10), {
+        revenue: Number(row.revenue ?? 0),
+        orders: Number(row.orders),
+      });
+    }
+
+    const series: Array<{ date: string; revenue: number; orders: number }> = [];
+    for (let offset = 0; offset < days; offset++) {
+      const date = new Date(since);
+      date.setUTCDate(since.getUTCDate() + offset);
+      const key = date.toISOString().slice(0, 10);
+      const entry = byDay.get(key);
+      series.push({
+        date: key,
+        revenue: entry?.revenue ?? 0,
+        orders: entry?.orders ?? 0,
+      });
+    }
+
+    return {
+      days,
+      series,
+      topProducts: topProducts.map((row) => ({
+        name: row.name,
+        revenue: Number(row.revenue ?? 0),
+        orders: Number(row.orders),
+      })),
+    };
+  }
 }

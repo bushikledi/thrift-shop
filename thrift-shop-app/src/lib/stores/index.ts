@@ -7,3 +7,4 @@ export { useCartStore } from "./cart-store";
 export { useUIStore } from "./ui-store";
 export { useLocaleStore } from "./locale-store";
 
+export { useThemeStore, applyTheme } from "./theme-store";

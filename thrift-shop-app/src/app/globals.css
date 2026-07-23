@@ -100,3 +100,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* ---------------------------------------------------------------------------
+   Chart colour roles
+   Validated categorical palette: slot 1 (blue) and slot 3 (aqua), stepped
+   separately for each surface rather than flipped. Charts reference these
+   roles, never raw hex.
+   --------------------------------------------------------------------------- */
+:root {
+  --chart-surface: #fcfcfb;
+  --chart-series-1: #2a78d6;
+  --chart-series-3: #1baf7a;
+  --chart-grid: color-mix(in srgb, currentColor 12%, transparent);
+  --chart-text-secondary: #52514e;
+}
+
+.dark {
+  --chart-surface: #1a1a19;
+  --chart-series-1: #3987e5;
+  --chart-series-3: #199e70;
+  --chart-grid: color-mix(in srgb, currentColor 18%, transparent);
+  --chart-text-secondary: #c3c2b7;
+}

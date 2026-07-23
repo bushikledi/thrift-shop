@@ -26,7 +26,6 @@ export enum NotificationType {
 export enum NotificationChannel {
   EMAIL = 'EMAIL',
   SMS = 'SMS',
-  PUSH = 'PUSH',
 }
 
 export class SendNotificationDto {

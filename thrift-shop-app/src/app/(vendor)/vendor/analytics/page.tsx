@@ -6,7 +6,6 @@
 
 import { useState } from "react";
 import {
-  BarChart3,
   TrendingUp,
   TrendingDown,
   DollarSign,
@@ -17,7 +16,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -28,13 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useMyVendorStats } from "@/hooks/useVendors";
+import { useMyVendorStats, useMyVendorAnalytics } from "@/hooks/useVendors";
+import { TimeSeriesChart, RankedBarChart } from "@/components/charts";
 import { LoadingSkeleton } from "@/components/shared";
 import { formatCurrency } from "@/lib/utils";
 
 export default function VendorAnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d");
+  const days = timeRange === "7d" ? 7 : timeRange === "90d" ? 90 : 30;
   const { data: stats, isLoading } = useMyVendorStats();
+  const { data: analytics } = useMyVendorAnalytics(days);
 
   if (isLoading) {
     return (
@@ -135,53 +136,32 @@ export default function VendorAnalyticsPage() {
         ))}
       </div>
 
-      {/* Charts Placeholder */}
+      {/* Revenue and orders are separate charts: different scales, so a shared
+          axis would imply a relationship the data does not support. */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Revenue over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Chart visualization coming soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Status Distribution</CardTitle>
-            <CardDescription>Orders by status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-              <div className="text-center">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Chart visualization coming soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <TimeSeriesChart
+          title="Revenue"
+          description={`Delivered-order revenue, last ${days} days`}
+          data={analytics?.series ?? []}
+          metric="revenue"
+          format={formatCurrency}
+        />
+        <TimeSeriesChart
+          title="Orders"
+          description={`Orders received, last ${days} days`}
+          data={analytics?.series ?? []}
+          metric="orders"
+          format={(value) => value.toLocaleString()}
+        />
       </div>
 
-      {/* Top Products */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Performing Products</CardTitle>
-          <CardDescription>
-            Your best-selling products this period
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>Product performance analytics coming soon</p>
-          </div>
-        </CardContent>
-      </Card>
+      <RankedBarChart
+        title="Top Performing Products"
+        description="Your best-selling products this period"
+        data={analytics?.topProducts ?? []}
+        format={formatCurrency}
+        emptyMessage="No sales in this period yet."
+      />
     </div>
   );
 }

@@ -13,6 +13,12 @@ import type {
   PaginationParams,
 } from "@/types";
 
+export interface VendorAnalytics {
+  days: number;
+  series: Array<{ date: string; revenue: number; orders: number }>;
+  topProducts: Array<{ name: string; revenue: number; orders: number }>;
+}
+
 export const vendorsApi = {
   /**
    * Get all vendors
@@ -93,6 +99,12 @@ export const vendorsApi = {
    */
   getMyReviews: (params: PaginationParams): Promise<ReviewListResponseDto> =>
     get<ReviewListResponseDto>("/vendors/me/reviews", { params }),
+
+  /**
+   * Store analytics for a rolling window
+   */
+  getMyAnalytics: (days = 30): Promise<VendorAnalytics> =>
+    get<VendorAnalytics>("/vendors/me/analytics", { params: { days } }),
 };
 
 export default vendorsApi;

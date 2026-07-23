@@ -134,14 +134,6 @@ export class NotificationsService {
           message: this.buildSmsMessage(dto.type, dto.data),
         });
 
-      case NotificationChannel.PUSH:
-        // TODO: Implement push notifications
-        this.logger.warn('Push notifications not yet implemented');
-        return {
-          success: false,
-          message: 'Push notifications not implemented',
-        };
-
       default:
         throw new Error(
           `Unknown notification channel: ${dto.channel as string}`,

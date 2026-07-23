@@ -61,6 +61,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get auditLog() {
     return this._client.auditLog;
   }
+  get platformSettings() {
+    return this._client.platformSettings;
+  }
+  get promoCode() {
+    return this._client.promoCode;
+  }
 
   // Expose transaction method - supports both function and array patterns
   $transaction<T>(

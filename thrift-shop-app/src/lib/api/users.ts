@@ -1,7 +1,7 @@
 /**
  * Users API Service
  */
-import { get, put, post, del } from "../apiClient";
+import { get, put, patch, post, del } from "../apiClient";
 import type {
   UserProfileResponseDto,
   UpdateUserDto,
@@ -16,6 +16,26 @@ export interface AddressDto {
   state: string;
   zip: string;
   country: string;
+}
+
+export interface NotificationToggles {
+  orders: boolean;
+  promotions: boolean;
+  reviews: boolean;
+  messages: boolean;
+}
+
+export type NotificationChannel = "email" | "sms";
+
+export interface UserPreferences {
+  notifications: Record<NotificationChannel, NotificationToggles>;
+}
+
+/** Any subset of preferences, for partial updates. */
+export interface PartialUserPreferences {
+  notifications?: Partial<
+    Record<NotificationChannel, Partial<NotificationToggles>>
+  >;
 }
 
 export const usersApi = {
@@ -66,6 +86,22 @@ export const usersApi = {
    */
   updateAddress: (data: AddressDto): Promise<AddressDto> =>
     put<AddressDto, AddressDto>("/users/me/address", data),
+
+  /**
+   * Get notification preferences (defaults applied server-side)
+   */
+  getPreferences: (): Promise<UserPreferences> =>
+    get<UserPreferences>("/users/me/preferences"),
+
+  /**
+   * Update notification preferences. Partial: only the channels/categories
+   * included are changed.
+   */
+  updatePreferences: (data: PartialUserPreferences): Promise<UserPreferences> =>
+    patch<UserPreferences, PartialUserPreferences>(
+      "/users/me/preferences",
+      data
+    ),
 };
 
 export default usersApi;

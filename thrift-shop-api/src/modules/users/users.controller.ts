@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Patch,
   Post,
   Delete,
   Body,
@@ -25,6 +26,8 @@ import {
   UserProfileResponseDto,
   SavedItemResponseDto,
   AddressDto,
+  UpdateUserPreferencesDto,
+  UserPreferencesResponseDto,
 } from './dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { CurrentUser } from '../../common/decorators';
@@ -199,5 +202,42 @@ export class UsersController {
     @Body() dto: AddressDto,
   ) {
     return this.usersService.updateAddress(userId, dto);
+  }
+
+  @Get('me/preferences')
+  @ApiOperation({ summary: 'Get notification preferences' })
+  @ApiResponse({
+    status: 200,
+    description: 'Preferences with defaults applied',
+    type: UserPreferencesResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Not authenticated',
+    type: ErrorResponseDto,
+  })
+  async getPreferences(@CurrentUser('id') userId: string) {
+    return this.usersService.getPreferences(userId);
+  }
+
+  @Patch('me/preferences')
+  @ApiOperation({
+    summary: 'Update notification preferences',
+    description:
+      'Partial update: only the channels and categories present in the body change.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated preferences',
+    type: UserPreferencesResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Not authenticated',
+    type: ErrorResponseDto,
+  })
+  async updatePreferences(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateUserPreferencesDto,
+  ) {
+    return this.usersService.updatePreferences(userId, dto);
   }
 }

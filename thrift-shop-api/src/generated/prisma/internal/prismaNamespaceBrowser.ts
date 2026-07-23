@@ -62,7 +62,9 @@ export const ModelName = {
   OrderItem: 'OrderItem',
   Review: 'Review',
   SavedItem: 'SavedItem',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  PlatformSettings: 'PlatformSettings',
+  PromoCode: 'PromoCode'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -92,6 +94,7 @@ export const UserScalarFieldEnum = {
   isActive: 'isActive',
   emailVerified: 'emailVerified',
   address: 'address',
+  preferences: 'preferences',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -171,6 +174,8 @@ export const ProductScalarFieldEnum = {
   isActive: 'isActive',
   isFeatured: 'isFeatured',
   viewCount: 'viewCount',
+  flaggedAt: 'flaggedAt',
+  flagReason: 'flagReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -304,6 +309,38 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const PlatformSettingsScalarFieldEnum = {
+  id: 'id',
+  siteName: 'siteName',
+  siteDescription: 'siteDescription',
+  supportEmail: 'supportEmail',
+  maintenanceMode: 'maintenanceMode',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PlatformSettingsScalarFieldEnum = (typeof PlatformSettingsScalarFieldEnum)[keyof typeof PlatformSettingsScalarFieldEnum]
+
+
+export const PromoCodeScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  description: 'description',
+  discountType: 'discountType',
+  discountValue: 'discountValue',
+  maxDiscount: 'maxDiscount',
+  minOrderTotal: 'minOrderTotal',
+  usageLimit: 'usageLimit',
+  usageCount: 'usageCount',
+  startsAt: 'startsAt',
+  expiresAt: 'expiresAt',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromoCodeScalarFieldEnum = (typeof PromoCodeScalarFieldEnum)[keyof typeof PromoCodeScalarFieldEnum]
 
 
 export const SortOrder = {

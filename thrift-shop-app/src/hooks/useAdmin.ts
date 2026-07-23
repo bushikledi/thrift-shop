@@ -6,7 +6,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api/admin";
+import {
+  adminApi,
+  type UpdatePlatformSettings,
+} from "@/lib/api/admin";
 import { queryKeys } from "./queryKeys";
 import type {
   AdminUpdateUserDto,
@@ -304,5 +307,92 @@ export function useAdminAuditLogs(params: PaginationParams) {
     ),
     queryFn: () => adminApi.getAuditLogs(params),
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Platform settings (admin only).
+ */
+export function useAdminSettings() {
+  return useQuery({
+    queryKey: queryKeys.admin.settings(),
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUpdateAdminSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdatePlatformSettings) => adminApi.updateSettings(data),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(queryKeys.admin.settings(), settings);
+      toast.success("Settings saved");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to save settings");
+    },
+  });
+}
+
+/**
+ * Product moderation (admin only).
+ */
+export function useAdminFlagProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminApi.flagProduct(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Product flagged and hidden from the storefront");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to flag product");
+    },
+  });
+}
+
+export function useAdminUnflagProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.unflagProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Flag cleared and product restored");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || "Failed to clear flag");
+    },
+  });
+}
+
+export function useAdminDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      toast.success("Product deleted");
+    },
+    onError: (error: ApiError) => {
+      // A 409 here means the product is referenced by existing orders.
+      toast.error(error.message || "Failed to delete product");
+    },
+  });
+}
+
+/**
+ * Platform analytics for a rolling window (admin only).
+ */
+export function useAdminAnalytics(days = 30) {
+  return useQuery({
+    queryKey: queryKeys.admin.analytics(days),
+    queryFn: () => adminApi.getAnalytics(days),
+    staleTime: 5 * 60 * 1000,
   });
 }

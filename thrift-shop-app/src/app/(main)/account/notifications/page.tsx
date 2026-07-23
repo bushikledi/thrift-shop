@@ -5,8 +5,13 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Mail, MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { Bell, Mail, MessageSquare, Loader2 } from "lucide-react";
+
+import {
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from "@/hooks/useUsers";
+import type { NotificationChannel } from "@/lib/api/users";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,45 +24,47 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AccountNotificationsPage() {
-  const [settings, setSettings] = useState({
-    email: {
-      orders: true,
-      promotions: false,
-      reviews: true,
-      messages: true,
-    },
-    push: {
-      orders: true,
-      promotions: false,
-      reviews: false,
-      messages: true,
-    },
-    sms: {
-      orders: false,
-      promotions: false,
-      reviews: false,
-      messages: false,
-    },
-  });
+type ChannelSettings = {
+  orders: boolean;
+  promotions: boolean;
+  reviews: boolean;
+  messages: boolean;
+};
+type NotificationSettings = Record<NotificationChannel, ChannelSettings>;
 
-  const handleToggle = (
-    category: "email" | "push" | "sms",
-    key: string
-  ) => {
-    setSettings({
+const FALLBACK_SETTINGS: NotificationSettings = {
+  email: { orders: true, promotions: false, reviews: true, messages: true },
+  sms: { orders: false, promotions: false, reviews: false, messages: false },
+};
+
+export default function AccountNotificationsPage() {
+  const { data: preferences, isLoading } = useNotificationPreferences();
+  const updatePreferences = useUpdateNotificationPreferences();
+
+  // Unsaved edits. Derived from the server value until the user changes
+  // something, which avoids syncing server state into local state in an effect.
+  const [draft, setDraft] = useState<NotificationSettings | null>(null);
+  const settings = draft ?? preferences?.notifications ?? FALLBACK_SETTINGS;
+
+  const handleToggle = (category: NotificationChannel, key: string) => {
+    setDraft({
       ...settings,
       [category]: {
         ...settings[category],
-        [key]: !settings[category][key as keyof typeof settings.email],
+        [key]: !settings[category][key as keyof ChannelSettings],
       },
     });
   };
 
   const handleSave = () => {
-    // TODO: Implement API call to save notification preferences
-    toast.success("Notification preferences saved");
+    updatePreferences.mutate(
+      { notifications: settings },
+      // Drop the draft so the page follows the server value again.
+      { onSuccess: () => setDraft(null) }
+    );
   };
+
+  const hasUnsavedChanges = draft !== null;
 
   const notificationCategories = [
     {
@@ -128,38 +135,6 @@ export default function AccountNotificationsPage() {
           </CardContent>
         </Card>
 
-        {/* Push Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Push Notifications
-            </CardTitle>
-            <CardDescription>
-              Receive notifications in your browser
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notificationCategories.map((category) => (
-              <div
-                key={category.key}
-                className="flex items-center justify-between"
-              >
-                <div className="space-y-0.5">
-                  <Label>{category.title}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {category.description}
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.push[category.key as keyof typeof settings.push]}
-                  onCheckedChange={() => handleToggle("push", category.key)}
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
         {/* SMS Notifications */}
         <Card>
           <CardHeader>
@@ -194,7 +169,15 @@ export default function AccountNotificationsPage() {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>Save Preferences</Button>
+        <Button
+          onClick={handleSave}
+          disabled={isLoading || updatePreferences.isPending || !hasUnsavedChanges}
+        >
+          {updatePreferences.isPending && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+          )}
+          {hasUnsavedChanges ? "Save Preferences" : "Saved"}
+        </Button>
       </div>
     </div>
   );

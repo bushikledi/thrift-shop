@@ -408,7 +408,9 @@ export const ModelName = {
   OrderItem: 'OrderItem',
   Review: 'Review',
   SavedItem: 'SavedItem',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  PlatformSettings: 'PlatformSettings',
+  PromoCode: 'PromoCode'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -424,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "passwordReset" | "vendor" | "category" | "product" | "media" | "cartSession" | "cartItem" | "order" | "orderItem" | "review" | "savedItem" | "auditLog"
+    modelProps: "user" | "passwordReset" | "vendor" | "category" | "product" | "media" | "cartSession" | "cartItem" | "order" | "orderItem" | "review" | "savedItem" | "auditLog" | "platformSettings" | "promoCode"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1390,6 +1392,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PlatformSettings: {
+      payload: Prisma.$PlatformSettingsPayload<ExtArgs>
+      fields: Prisma.PlatformSettingsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PlatformSettingsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PlatformSettingsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        findFirst: {
+          args: Prisma.PlatformSettingsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PlatformSettingsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        findMany: {
+          args: Prisma.PlatformSettingsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>[]
+        }
+        create: {
+          args: Prisma.PlatformSettingsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        createMany: {
+          args: Prisma.PlatformSettingsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PlatformSettingsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>[]
+        }
+        delete: {
+          args: Prisma.PlatformSettingsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        update: {
+          args: Prisma.PlatformSettingsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        deleteMany: {
+          args: Prisma.PlatformSettingsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PlatformSettingsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PlatformSettingsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>[]
+        }
+        upsert: {
+          args: Prisma.PlatformSettingsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformSettingsPayload>
+        }
+        aggregate: {
+          args: Prisma.PlatformSettingsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePlatformSettings>
+        }
+        groupBy: {
+          args: Prisma.PlatformSettingsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlatformSettingsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PlatformSettingsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlatformSettingsCountAggregateOutputType> | number
+        }
+      }
+    }
+    PromoCode: {
+      payload: Prisma.$PromoCodePayload<ExtArgs>
+      fields: Prisma.PromoCodeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PromoCodeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PromoCodeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        findFirst: {
+          args: Prisma.PromoCodeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PromoCodeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        findMany: {
+          args: Prisma.PromoCodeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>[]
+        }
+        create: {
+          args: Prisma.PromoCodeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        createMany: {
+          args: Prisma.PromoCodeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PromoCodeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>[]
+        }
+        delete: {
+          args: Prisma.PromoCodeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        update: {
+          args: Prisma.PromoCodeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        deleteMany: {
+          args: Prisma.PromoCodeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PromoCodeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PromoCodeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>[]
+        }
+        upsert: {
+          args: Prisma.PromoCodeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoCodePayload>
+        }
+        aggregate: {
+          args: Prisma.PromoCodeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePromoCode>
+        }
+        groupBy: {
+          args: Prisma.PromoCodeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoCodeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PromoCodeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoCodeCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1440,6 +1590,7 @@ export const UserScalarFieldEnum = {
   isActive: 'isActive',
   emailVerified: 'emailVerified',
   address: 'address',
+  preferences: 'preferences',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1519,6 +1670,8 @@ export const ProductScalarFieldEnum = {
   isActive: 'isActive',
   isFeatured: 'isFeatured',
   viewCount: 'viewCount',
+  flaggedAt: 'flaggedAt',
+  flagReason: 'flagReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1652,6 +1805,38 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const PlatformSettingsScalarFieldEnum = {
+  id: 'id',
+  siteName: 'siteName',
+  siteDescription: 'siteDescription',
+  supportEmail: 'supportEmail',
+  maintenanceMode: 'maintenanceMode',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PlatformSettingsScalarFieldEnum = (typeof PlatformSettingsScalarFieldEnum)[keyof typeof PlatformSettingsScalarFieldEnum]
+
+
+export const PromoCodeScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  description: 'description',
+  discountType: 'discountType',
+  discountValue: 'discountValue',
+  maxDiscount: 'maxDiscount',
+  minOrderTotal: 'minOrderTotal',
+  usageLimit: 'usageLimit',
+  usageCount: 'usageCount',
+  startsAt: 'startsAt',
+  expiresAt: 'expiresAt',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromoCodeScalarFieldEnum = (typeof PromoCodeScalarFieldEnum)[keyof typeof PromoCodeScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1882,6 +2067,20 @@ export type EnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
 export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus[]'>
     
 
+
+/**
+ * Reference to a field of type 'DiscountType'
+ */
+export type EnumDiscountTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DiscountType'>
+    
+
+
+/**
+ * Reference to a field of type 'DiscountType[]'
+ */
+export type ListEnumDiscountTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DiscountType[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -2046,6 +2245,8 @@ export type GlobalOmitConfig = {
   review?: Prisma.ReviewOmit
   savedItem?: Prisma.SavedItemOmit
   auditLog?: Prisma.AuditLogOmit
+  platformSettings?: Prisma.PlatformSettingsOmit
+  promoCode?: Prisma.PromoCodeOmit
 }
 
 /* Types for Logging */

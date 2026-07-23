@@ -4,12 +4,15 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Save, Bell, Shield, Globe, Mail, CreditCard } from "lucide-react";
-import { toast } from "sonner";
+import {
+  useAdminSettings,
+  useUpdateAdminSettings,
+} from "@/hooks/useAdmin";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +38,13 @@ const settingsSchema = z.object({
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
 export default function AdminSettingsPage() {
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: settings, isLoading } = useAdminSettings();
+  const updateSettings = useUpdateAdminSettings();
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
     watch,
     setValue,
@@ -53,20 +58,29 @@ export default function AdminSettingsPage() {
     },
   });
 
+  // Populate from the stored settings once they load.
+  useEffect(() => {
+    if (!settings) return;
+    reset({
+      siteName: settings.siteName,
+      siteDescription: settings.siteDescription ?? "",
+      supportEmail: settings.supportEmail ?? "",
+      maintenanceMode: settings.maintenanceMode,
+    });
+  }, [settings, reset]);
+
   const maintenanceMode = watch("maintenanceMode");
 
-  const onSubmit = async (data: SettingsFormData) => {
-    setIsSaving(true);
-    try {
-      // TODO: Implement API call to save settings
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Settings saved successfully");
-    } catch (error) {
-      toast.error("Failed to save settings");
-    } finally {
-      setIsSaving(false);
-    }
+  const onSubmit = (data: SettingsFormData) => {
+    updateSettings.mutate({
+      siteName: data.siteName,
+      siteDescription: data.siteDescription || undefined,
+      supportEmail: data.supportEmail || undefined,
+      maintenanceMode: data.maintenanceMode,
+    });
   };
+
+  const isSaving = updateSettings.isPending;
 
   return (
     <div className="space-y-6">
@@ -291,7 +305,7 @@ export default function AdminSettingsPage() {
         </Tabs>
 
         <div className="flex justify-end mt-6">
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || isLoading}>
             {isSaving ? (
               <>
                 <span className="mr-2">Saving...</span>

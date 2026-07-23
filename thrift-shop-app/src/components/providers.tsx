@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { CartDrawer } from "@/components/cart";
 import { SearchModal } from "@/components/search/search-modal";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { ThemeProvider } from "@/components/theme-provider";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -62,21 +63,23 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <AuthInitializer>
-          {children}
-          <CartDrawer />
-          <SearchModal />
-          <Toaster
-            position="bottom-right"
-            richColors
-            closeButton
-            toastOptions={{
-              duration: 4000,
-              className: "!bg-background !text-foreground !border",
-            }}
-            expand={false}
-          />
-        </AuthInitializer>
+        <ThemeProvider>
+          <AuthInitializer>
+            {children}
+            <CartDrawer />
+            <SearchModal />
+            <Toaster
+              position="bottom-right"
+              richColors
+              closeButton
+              toastOptions={{
+                duration: 4000,
+                className: "!bg-background !text-foreground !border",
+              }}
+              expand={false}
+            />
+          </AuthInitializer>
+        </ThemeProvider>
       </NextIntlClientProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

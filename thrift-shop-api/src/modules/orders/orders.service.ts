@@ -28,6 +28,7 @@ import {
 } from '../../generated/prisma/client';
 import { OrdersRepository } from './orders.repository';
 import { PaymentsService } from '../payments/payments.service';
+import { PromoService } from '../promo/promo.service';
 
 interface ShippingConfig {
   baseRate: number;
@@ -68,6 +69,7 @@ export class OrdersService {
     private orderNumberService: OrderNumberService,
     private configService: ConfigService,
     private paymentsService: PaymentsService,
+    private promoService: PromoService,
   ) {}
 
   /**
@@ -183,6 +185,18 @@ export class OrdersService {
       country: dto.shippingAddress.country,
     };
 
+    // A promo applies to the whole cart, so resolve it once against the cart
+    // subtotal and share it across the per-vendor orders below.
+    const cartSubtotal = cart.items.reduce(
+      (sum, item) => sum + Number(item.product.price) * item.quantity,
+      0,
+    );
+    const appliedPromo = dto.promoCode
+      ? await this.promoService.validate(dto.promoCode, cartSubtotal)
+      : null;
+    let remainingDiscount = appliedPromo?.discount ?? 0;
+    let remainingVendors = itemsByVendor.size;
+
     // Use transaction for atomic order creation
     const orders = (await this.prisma.$transaction<OrderWithVendorAndItems[]>(
       async (tx) => {
@@ -198,7 +212,24 @@ export class OrdersService {
             dto.shippingMethod || 'standard',
             subtotal,
           );
-          const total = subtotal + shippingAmount;
+          // Split the cart discount in proportion to each vendor's subtotal.
+          // The last order absorbs the rounding remainder so the parts always
+          // add back up to the discount the shopper was quoted.
+          remainingVendors -= 1;
+          const discount =
+            remainingVendors === 0
+              ? remainingDiscount
+              : Math.min(
+                  remainingDiscount,
+                  Math.round(
+                    ((appliedPromo?.discount ?? 0) * subtotal * 100) /
+                      cartSubtotal,
+                  ) / 100,
+                );
+          remainingDiscount =
+            Math.round((remainingDiscount - discount) * 100) / 100;
+
+          const total = subtotal + shippingAmount - discount;
 
           // Use the OrderNumberService for atomic generation
           const orderNumber = await this.orderNumberService.generate();
@@ -213,6 +244,7 @@ export class OrdersService {
               shippingMethod: dto.shippingMethod,
               shippingAmount,
               subtotal,
+              discount,
               total,
               paymentMethod: dto.paymentMethod,
               customerNotes: dto.customerNotes,
@@ -266,6 +298,20 @@ export class OrdersService {
         timeout: 15000,
       },
     )) as OrderWithVendorAndItems[];
+
+    // Count the redemption once the orders exist. Failing here must not undo a
+    // completed purchase, so it is logged rather than thrown.
+    if (appliedPromo) {
+      await this.promoService
+        .recordRedemption(appliedPromo.id)
+        .catch((error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(
+            `Failed to record redemption of promo ${appliedPromo.code}: ${message}`,
+          );
+        });
+    }
 
     // Emit order.created events (outside transaction - non-critical)
     for (const order of orders) {
