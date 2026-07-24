@@ -7,6 +7,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   MediaOwnerType,
+  DiscountType,
 } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
@@ -45,6 +46,7 @@ async function main() {
 
   // Clean existing data
   console.log('🧹 Cleaning existing data...');
+  await prisma.promoCode.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.review.deleteMany();
   await prisma.savedItem.deleteMany();
@@ -282,6 +284,10 @@ async function main() {
               name: generateSlug(data.displayName),
               displayName: data.displayName,
               bio: data.bio,
+              // Deterministic placeholder branding so storefronts render a
+              // logo/banner instead of the initials fallback.
+              logo: `https://api.dicebear.com/7.x/shapes/svg?seed=${generateSlug(data.displayName)}`,
+              banner: `https://picsum.photos/seed/${generateSlug(data.displayName)}-banner/1200/300`,
               verified: index < 7, // First 7 vendors are verified
               rating: 3.5 + Math.random() * 1.5, // Rating between 3.5 and 5
               reviewCount: randomBetween(10, 150),
@@ -1407,6 +1413,10 @@ async function main() {
           data: {
             ownerType: MediaOwnerType.PRODUCT,
             ownerId: product.id,
+            // Concrete FK the Product.media relation joins on. Without this the
+            // API returns media: [] even though rows exist (only ownerId is the
+            // polymorphic key). See F1.
+            productId: product.id,
             url: `https://picsum.photos/seed/${product.id}-${m}/800/1000`,
             filename: `product-${product.id}-${m}.jpg`,
             mimeType: 'image/jpeg',
@@ -1559,6 +1569,10 @@ async function main() {
           shippingAmount,
           subtotal,
           total,
+          trackingNumber:
+            status === OrderStatus.SHIPPED || status === OrderStatus.DELIVERED
+              ? `1Z${String(randomBetween(100000000, 999999999))}`
+              : null,
           status,
           paymentMethod: randomElement([
             PaymentMethod.COD,
@@ -1664,6 +1678,10 @@ async function main() {
         shippingAmount,
         subtotal,
         total,
+        trackingNumber:
+          status === OrderStatus.SHIPPED || status === OrderStatus.DELIVERED
+            ? `1Z${String(randomBetween(100000000, 999999999))}`
+            : null,
         status,
         paymentMethod: PaymentMethod.COD,
         paymentStatus:
@@ -1836,6 +1854,119 @@ async function main() {
   }
 
   // =============================================================================
+  // PROMO CODES
+  // =============================================================================
+  console.log('🏷️  Creating promo codes...');
+
+  const now = Date.now();
+  const daysFromNow = (d: number) => new Date(now + d * 24 * 60 * 60 * 1000);
+
+  const promoCodes = [
+    {
+      code: 'WELCOME10',
+      description: '10% off your first order',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 10,
+      maxDiscount: 50,
+      minOrderTotal: 20,
+      usageLimit: null,
+      startsAt: daysFromNow(-30),
+      expiresAt: daysFromNow(90),
+      isActive: true,
+    },
+    {
+      code: 'SAVE20',
+      description: '20% off orders over 100',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 20,
+      maxDiscount: 100,
+      minOrderTotal: 100,
+      usageLimit: 500,
+      startsAt: daysFromNow(-7),
+      expiresAt: daysFromNow(30),
+      isActive: true,
+    },
+    {
+      code: 'FLAT15',
+      description: '15 off any order',
+      discountType: DiscountType.FIXED,
+      discountValue: 15,
+      maxDiscount: null,
+      minOrderTotal: 50,
+      usageLimit: 200,
+      startsAt: daysFromNow(-14),
+      expiresAt: daysFromNow(60),
+      isActive: true,
+    },
+    {
+      code: 'FREESHIP',
+      description: '10 off to cover shipping',
+      discountType: DiscountType.FIXED,
+      discountValue: 10,
+      maxDiscount: null,
+      minOrderTotal: 30,
+      usageLimit: null,
+      startsAt: daysFromNow(-1),
+      expiresAt: daysFromNow(45),
+      isActive: true,
+    },
+    {
+      code: 'SUMMER25',
+      description: '25% summer sale (expired)',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 25,
+      maxDiscount: 75,
+      minOrderTotal: 40,
+      usageLimit: 1000,
+      startsAt: daysFromNow(-120),
+      expiresAt: daysFromNow(-30),
+      isActive: true, // active flag on, but expired — exercises expiry logic
+    },
+    {
+      code: 'VIP50',
+      description: '50% off (inactive)',
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: 50,
+      maxDiscount: 200,
+      minOrderTotal: 150,
+      usageLimit: 50,
+      startsAt: daysFromNow(-10),
+      expiresAt: daysFromNow(30),
+      isActive: false, // disabled — exercises the isActive check
+    },
+  ];
+
+  for (const promo of promoCodes) {
+    await prisma.promoCode.create({
+      data: {
+        ...promo,
+        usageCount: promo.usageLimit
+          ? randomBetween(0, Math.floor(promo.usageLimit / 4))
+          : randomBetween(0, 200),
+      },
+    });
+  }
+  console.log(`   Created ${promoCodes.length} promo codes`);
+
+  // =============================================================================
+  // PLATFORM SETTINGS
+  // =============================================================================
+  console.log('⚙️  Creating platform settings...');
+
+  await prisma.platformSettings.upsert({
+    where: { id: 'singleton' },
+    update: {},
+    create: {
+      id: 'singleton',
+      siteName: 'ThriftShop',
+      siteDescription:
+        'Discover unique, sustainable second-hand fashion and home goods.',
+      supportEmail: 'support@thriftshop.com',
+      maintenanceMode: false,
+    },
+  });
+
+  // =============================================================================
   // SUMMARY
   // =============================================================================
   console.log('\n✅ Seed completed successfully!\n');
@@ -1853,8 +1984,10 @@ async function main() {
 
   const reviewCount = await prisma.review.count();
   const savedCount = await prisma.savedItem.count();
+  const promoCount = await prisma.promoCode.count();
   console.log(`   ⭐ Reviews: ${reviewCount}`);
   console.log(`   💾 Saved Items: ${savedCount}`);
+  console.log(`   🏷️  Promo Codes: ${promoCount}`);
 
   console.log('\n🔑 Test Credentials:');
   console.log(`   Admin: admin@thriftshop.com / ${adminPassword}`);
