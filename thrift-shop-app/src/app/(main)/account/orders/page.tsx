@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useOrders } from "@/hooks/useOrders";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Pagination, LoadingSkeleton, EmptyState } from "@/components/shared";
@@ -224,7 +224,7 @@ export default function AccountOrdersPage() {
                               Total
                             </p>
                             <p className="font-semibold">
-                              ${order.total?.toFixed(2)}
+                              {formatCurrency(order.total)}
                             </p>
                           </div>
                         </div>
@@ -264,12 +264,14 @@ export default function AccountOrdersPage() {
                                       {item.product?.name || "Product"}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                      Qty: {item.quantity} × $
-                                      {item.price?.toFixed(2)}
+                                      Qty: {item.quantity} ×{" "}
+                                      {formatCurrency(item.price)}
                                     </p>
                                   </div>
                                   <p className="font-medium">
-                                    ${(item.quantity * item.price).toFixed(2)}
+                                    {formatCurrency(
+                                      item.quantity * Number(item.price)
+                                    )}
                                   </p>
                                 </div>
                               )

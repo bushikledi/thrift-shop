@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useOrder } from "@/hooks/useOrders";
 import { LoadingSkeleton } from "@/components/shared";
 import type { OrderItemResponseDto } from "@/types";
@@ -323,10 +323,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">
-                      ${(item.quantity * item.price).toFixed(2)}
+                      {formatCurrency(item.quantity * Number(item.price))}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      ${item.price?.toFixed(2)} each
+                      {formatCurrency(item.price)} each
                     </p>
                   </div>
                 </div>
@@ -364,24 +364,24 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             <CardContent className="space-y-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${order.subtotal?.toFixed(2)}</span>
+                <span>{formatCurrency(order.subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shipping</span>
                 <span>
-                  {order.shipping === 0
+                  {Number(order.shipping) === 0
                     ? "Free"
-                    : `$${order.shipping?.toFixed(2)}`}
+                    : formatCurrency(order.shipping)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax</span>
-                <span>${order.tax?.toFixed(2) || "0.00"}</span>
+                <span>{formatCurrency(order.tax)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span>${order.total?.toFixed(2)}</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
             </CardContent>
           </Card>

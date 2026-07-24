@@ -11,6 +11,7 @@ import {
   type PartialUserPreferences,
 } from "@/lib/api/users";
 import { queryKeys } from "./queryKeys";
+import { useIsAuthenticated } from "./useAuth";
 import type {
   UpdateUserDto,
   UserProfileResponseDto,
@@ -76,9 +77,13 @@ export function useUpdateUserProfile() {
  * Get saved/wishlist items
  */
 export function useSavedItems() {
+  // Only a signed-in user has saved items; without this the wishlist toggle on
+  // product cards fires GET /users/me/saved -> 401 for every guest. See F2.
+  const isAuthenticated = useIsAuthenticated();
   return useQuery({
     queryKey: queryKeys.users.savedItems(),
     queryFn: () => usersApi.getSavedItems(),
+    enabled: isAuthenticated,
     staleTime: 60 * 1000,
   });
 }

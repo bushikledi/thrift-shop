@@ -169,7 +169,7 @@ export default function VendorsPage() {
 
               <CardContent className="pt-12 pb-4">
                 <Link
-                  href={`/vendors/${vendor.id}`}
+                  href={`/vendors/${vendor.name}`}
                   className="font-semibold text-lg hover:underline line-clamp-1"
                 >
                   {vendor.displayName}
@@ -184,7 +184,7 @@ export default function VendorsPage() {
                 </div>
 
                 <Button asChild className="w-full mt-4" variant="outline">
-                  <Link href={`/vendors/${vendor.id}`}>
+                  <Link href={`/vendors/${vendor.name}`}>
                     Visit Store
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </Link>
@@ -209,7 +209,7 @@ export default function VendorsPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <Link
-                          href={`/vendors/${vendor.id}`}
+                          href={`/vendors/${vendor.name}`}
                           className="font-semibold text-lg hover:underline"
                         >
                           {vendor.displayName}
@@ -225,7 +225,7 @@ export default function VendorsPage() {
                         variant="outline"
                         className="flex-shrink-0"
                       >
-                        <Link href={`/vendors/${vendor.id}`}>Visit Store</Link>
+                        <Link href={`/vendors/${vendor.name}`}>Visit Store</Link>
                       </Button>
                     </div>
                   </div>

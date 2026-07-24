@@ -6,14 +6,17 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatPrice(
-  price: number,
+  // The API serializes money as strings (Prisma Decimal), so accept both and
+  // coerce defensively — passing a string straight to `.toFixed()` throws.
+  price: number | string | null | undefined,
   currency = "ALL",
   locale = "en-US"
 ): string {
+  const value = typeof price === "number" ? price : Number(price ?? 0);
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-  }).format(price);
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 export function formatDate(date: string | Date, locale = "en-US"): string {

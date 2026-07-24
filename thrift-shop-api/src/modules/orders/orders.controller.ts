@@ -30,7 +30,7 @@ import {
   OrderResponseDto,
   TrackOrderDto,
 } from './dto';
-import { JwtAuthGuard } from '../auth/guards';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from '../auth/guards';
 import { Public, Roles, CurrentUser } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
 import { UserRole, OrderStatus } from '../../generated/prisma/client';
@@ -42,7 +42,11 @@ import { ErrorResponseDto } from '../../common/dto/error-response.dto';
 export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
+  // @Public() disables the global JwtAuthGuard (which would reject guests);
+  // OptionalJwtAuthGuard then attaches req.user when a valid token/cookie is
+  // present, so authenticated users are not treated as guests. See F6.
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('checkout')
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 checkouts per minute per IP
   @ApiOperation({ summary: 'Create order (supports guest checkout)' })

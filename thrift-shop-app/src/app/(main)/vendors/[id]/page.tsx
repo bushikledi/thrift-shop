@@ -33,7 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useVendor, useVendorProducts } from "@/hooks/useVendors";
 import { useVendorReviews } from "@/hooks/useReviews";
 import { useAddToCart } from "@/hooks/useCart";
@@ -92,15 +92,17 @@ export default function VendorPage({ params }: VendorPageProps) {
     id,
     { page, limit: PAGE_SIZE }
   );
+  // Reviews are keyed by the vendor's UUID, while the route param is the slug —
+  // use the id from the loaded vendor (the hook is gated on a truthy id).
   const { data: reviewsData, isLoading: reviewsLoading } = useVendorReviews(
-    id,
+    vendor?.id ?? "",
     { page: 1, limit: 10 }
   );
 
   const addToCartMutation = useAddToCart();
 
-  const products = Array.isArray(productsData) ? productsData : [];
-  const totalPages = 1; // Calculate from products length if needed
+  const products = productsData?.data ?? [];
+  const totalPages = productsData?.meta?.totalPages ?? 1;
   const reviews = reviewsData?.data || [];
 
   const handleAddToCart = async (productId: string) => {
@@ -180,7 +182,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-yellow-500" />
                       <span className="font-medium text-foreground">
-                        {vendor.rating?.toFixed(1) || "N/A"}
+                        {vendor.rating ? Number(vendor.rating).toFixed(1) : "N/A"}
                       </span>
                       <span>({vendor.reviewCount || 0} reviews)</span>
                     </div>
@@ -301,7 +303,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                         </Link>
                         <div className="flex items-center justify-between mt-2">
                           <p className="font-semibold">
-                            ${product.price?.toFixed(2)}
+                            {formatCurrency(product.price)}
                           </p>
                           <Badge
                             variant="outline"
@@ -357,7 +359,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                             </p>
                             <div className="flex items-center gap-4 mt-2">
                               <p className="font-semibold">
-                                ${product.price?.toFixed(2)}
+                                {formatCurrency(product.price)}
                               </p>
                               <Badge variant="outline" className="capitalize">
                                 {product.condition?.replace("_", " ")}
@@ -412,7 +414,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                     <div className="flex items-center gap-8">
                       <div className="text-center">
                         <p className="text-5xl font-bold">
-                          {vendor.rating?.toFixed(1) || "0"}
+                          {vendor.rating ? Number(vendor.rating).toFixed(1) : "0"}
                         </p>
                         <StarRating rating={vendor.rating || 0} />
                         <p className="text-sm text-muted-foreground mt-1">

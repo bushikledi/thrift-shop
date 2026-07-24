@@ -67,10 +67,20 @@ export class ProductsService {
       ];
     }
 
-    if (categoryId) {
-      where.categoryId = categoryId;
-    } else if (categorySlug) {
-      where.category = { slug: categorySlug };
+    // Category filtering must include descendant categories: products are
+    // assigned to leaf subcategories (e.g. "womens-dresses"), so filtering by a
+    // parent ("womens-clothing") has to match the whole subtree. See F3.
+    if (categoryId || categorySlug) {
+      const categoryIds = await this.resolveCategoryTreeIds({
+        categoryId,
+        categorySlug,
+      });
+      if (categoryIds.length > 0) {
+        where.categoryId = { in: categoryIds };
+      } else {
+        // Requested category doesn't exist -> match nothing (preserve old behavior).
+        where.categoryId = categoryId ?? '__no_such_category__';
+      }
     }
     if (vendorId) where.vendorId = vendorId;
     if (condition) where.condition = condition;
@@ -126,6 +136,39 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Resolve a category (by id or slug) to the set of category ids that should
+   * match: the category itself plus all of its descendants. Products live on
+   * leaf subcategories, so a parent filter must expand to the whole subtree.
+   * Returns [] when the category is not found. See F3.
+   */
+  private async resolveCategoryTreeIds(params: {
+    categoryId?: string;
+    categorySlug?: string;
+  }): Promise<string[]> {
+    const { categoryId, categorySlug } = params;
+
+    const root = await this.prisma.category.findFirst({
+      where: categoryId ? { id: categoryId } : { slug: categorySlug },
+      select: { id: true },
+    });
+    if (!root) return [];
+
+    // The tree is shallow, but collect descendants iteratively so arbitrary
+    // depth is supported. One query per level keeps it simple and bounded.
+    const ids = [root.id];
+    let frontier = [root.id];
+    while (frontier.length > 0) {
+      const children = await this.prisma.category.findMany({
+        where: { parentId: { in: frontier } },
+        select: { id: true },
+      });
+      frontier = children.map((c) => c.id).filter((id) => !ids.includes(id));
+      ids.push(...frontier);
+    }
+    return ids;
   }
 
   async findBySlug(slug: string) {

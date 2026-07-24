@@ -7,6 +7,7 @@ import type {
   VendorDashboardStatsDto,
   UpdateVendorDto,
   ProductListItemDto,
+  PaginatedProductsResponseDto,
   ReviewSummaryDto,
   ReviewListResponseDto,
   OrderResponseDto,
@@ -40,8 +41,8 @@ export const vendorsApi = {
   getProducts: (
     name: string,
     params: PaginationParams
-  ): Promise<ProductListItemDto[]> =>
-    get<ProductListItemDto[]>(`/vendors/${name}/products`, { params }),
+  ): Promise<PaginatedProductsResponseDto> =>
+    get<PaginatedProductsResponseDto>(`/vendors/${name}/products`, { params }),
 
   /**
    * Get vendor reviews
