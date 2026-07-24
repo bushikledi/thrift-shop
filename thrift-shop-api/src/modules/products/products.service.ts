@@ -19,6 +19,7 @@ import {
 } from '../../common/constants';
 import { invalidateFeaturedProductsCache } from '../../common/utils';
 import { ProductsRepository, PRODUCT_INCLUDES } from './products.repository';
+import { ViewCountService } from './view-count.service';
 
 @Injectable()
 export class ProductsService {
@@ -27,6 +28,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private productsRepository: ProductsRepository,
+    private viewCountService: ViewCountService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -154,18 +156,11 @@ export class ProductsService {
   }
 
   /**
-   * Increment view count asynchronously (fire and forget)
+   * Records a view in the in-memory buffer. The buffer is flushed to the
+   * database periodically, so a read is not turned into a write.
    */
   private incrementViewCount(product: { id: string }): void {
-    this.productsRepository
-      .incrementViewCount(product.id)
-      .catch((error: unknown) => {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        this.logger.warn(
-          `Failed to increment view count for ${product.id}: ${errorMessage}`,
-        );
-      });
+    this.viewCountService.record(product.id);
   }
 
   async findById(id: string) {

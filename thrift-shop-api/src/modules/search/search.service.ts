@@ -298,15 +298,24 @@ export class SearchService {
       take: 6,
     });
 
-    // Get popular search terms (could be stored in a separate table for analytics)
-    const popularSearches = [
-      'vintage',
-      'denim',
-      'jacket',
-      'dress',
-      'sneakers',
-      'retro',
-    ];
+    // Derive popular search terms from the catalogue: the brands that appear
+    // most across active listings. Without a search-log table this is the
+    // closest honest signal, and it beats a hardcoded list that never changes.
+    const topBrands = await this.prisma.product.groupBy({
+      by: ['brand'],
+      where: {
+        isActive: true,
+        quantity: { gt: 0 },
+        brand: { not: null },
+      },
+      _count: { brand: true },
+      orderBy: { _count: { brand: 'desc' } },
+      take: 6,
+    });
+
+    const popularSearches = topBrands
+      .map((row) => row.brand)
+      .filter((brand): brand is string => Boolean(brand));
 
     return {
       products: trendingProducts,

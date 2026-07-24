@@ -303,6 +303,32 @@ export class MediaService {
     }
   }
 
+  /**
+   * Runs an async mapper over items with a bounded number in flight at once.
+   * Results preserve input order.
+   */
+  private async mapWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    mapper: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let cursor = 0;
+
+    const workers = Array.from(
+      { length: Math.min(concurrency, items.length) },
+      async () => {
+        while (cursor < items.length) {
+          const index = cursor++;
+          results[index] = await mapper(items[index]);
+        }
+      },
+    );
+
+    await Promise.all(workers);
+    return results;
+  }
+
   async create(file: UploadedFile, dto: CreateMediaDto, user: MediaUser) {
     // Verify the owner exists and the current user is allowed to attach media to it
     await this.authorizeOwner(dto.ownerType, dto.ownerId, user);
@@ -354,9 +380,13 @@ export class MediaService {
 
     let currentSortOrder = (lastMedia?.sortOrder ?? -1) + 1;
 
-    // Upload files in parallel (with rate limiting consideration)
-    const uploadResults = await Promise.all(
-      files.map((file) => this.upload(file, dto)),
+    // Each upload also generates several resized renditions, so a large batch
+    // uploaded fully in parallel can exhaust S3 connections and memory. Process
+    // them in small concurrent chunks instead of all at once.
+    const uploadResults = await this.mapWithConcurrency(
+      files,
+      MEDIA.UPLOAD_CONCURRENCY,
+      (file) => this.upload(file, dto),
     );
 
     // Create media records in parallel
