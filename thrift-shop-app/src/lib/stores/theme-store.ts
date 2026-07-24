@@ -32,7 +32,9 @@ export function applyTheme(theme: Theme): void {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: "system",
+      // Default to the warm light marketplace theme rather than following the
+      // OS (which would show the dark variant for most users).
+      theme: "light",
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });

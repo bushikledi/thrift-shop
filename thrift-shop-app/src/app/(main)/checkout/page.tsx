@@ -232,7 +232,11 @@ export default function CheckoutPage() {
     typeof cart?.subtotal === "string"
       ? parseFloat(cart.subtotal)
       : cart?.subtotal || 0;
-  const tax = subtotal * 0.0875; // Estimate 8.75% tax
+  // The backend does not calculate or charge tax (Order.total = subtotal +
+  // shipping - discount), so quoting an 8.75% estimate here made the checkout
+  // total (e.g. 226) disagree with the order that actually gets created (208).
+  // Keep the total honest until real tax handling exists server-side.
+  const tax = 0;
   const total = subtotal + shippingCost + tax;
 
   const onSubmit: SubmitHandler<CheckoutFormData> = async (data) => {

@@ -9,6 +9,12 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore, useUIStore } from "@/lib/stores";
+import {
+  useCart,
+  useRemoveCartItem,
+  useUpdateCartItem,
+  useClearCart,
+} from "@/hooks/useCart";
 import { formatPrice } from "@/lib/utils";
 
 const drawerVariants: Variants = {
@@ -54,10 +60,43 @@ export function CartDrawer() {
   const t = useTranslations();
   const router = useRouter();
   const { isCartOpen, closeCart } = useUIStore();
-  const { items, removeItem, updateQuantity, totalPrice, clearCart } =
-    useCartStore();
+  // Display comes from the store (kept in sync from the server by useCart), but
+  // all mutations must go through the server-backed React Query mutations —
+  // previously the drawer only mutated the local store, so removes/qty changes
+  // never persisted and reappeared on refresh.
+  const { items, totalPrice } = useCartStore();
+  const { data: serverCart } = useCart();
+  const removeCartItem = useRemoveCartItem();
+  const updateCartItem = useUpdateCartItem();
+  const clearCartMutation = useClearCart();
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
+  // Map productId -> server cart item id (the id the mutations require).
+  const itemIdByProduct = new Map(
+    (serverCart?.items ?? []).map((i) => [i.productId, i.id])
+  );
+
+  const persistRemove = (productId: string) => {
+    const itemId = itemIdByProduct.get(productId);
+    if (!itemId) return;
+    setRemovingItemId(productId);
+    removeCartItem.mutate(itemId, {
+      onSettled: () => setRemovingItemId(null),
+    });
+  };
+
+  const persistUpdateQuantity = (productId: string, quantity: number) => {
+    const itemId = itemIdByProduct.get(productId);
+    if (!itemId) return;
+    setUpdatingItemId(productId);
+    updateCartItem.mutate(
+      { itemId, data: { quantity } },
+      { onSettled: () => setUpdatingItemId(null) }
+    );
+  };
+
+  const persistClearCart = () => clearCartMutation.mutate();
 
   // Close drawer on escape key and trap focus
   useEffect(() => {
@@ -239,14 +278,12 @@ export function CartDrawer() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => {
-                                setUpdatingItemId(item.productId);
-                                updateQuantity(
+                              onClick={() =>
+                                persistUpdateQuantity(
                                   item.productId,
                                   Math.max(1, item.quantity - 1)
-                                );
-                                setTimeout(() => setUpdatingItemId(null), 300);
-                              }}
+                                )
+                              }
                               disabled={updatingItemId === item.productId || item.quantity <= 1}
                               aria-label="Decrease quantity"
                             >
@@ -268,14 +305,12 @@ export function CartDrawer() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => {
-                                setUpdatingItemId(item.productId);
-                                updateQuantity(
+                              onClick={() =>
+                                persistUpdateQuantity(
                                   item.productId,
                                   item.quantity + 1
-                                );
-                                setTimeout(() => setUpdatingItemId(null), 300);
-                              }}
+                                )
+                              }
                               disabled={updatingItemId === item.productId}
                               aria-label="Increase quantity"
                             >
@@ -290,11 +325,7 @@ export function CartDrawer() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => {
-                                setRemovingItemId(item.productId);
-                                removeItem(item.productId);
-                                setTimeout(() => setRemovingItemId(null), 500);
-                              }}
+                              onClick={() => persistRemove(item.productId)}
                               disabled={removingItemId === item.productId}
                               aria-label={`Remove ${item.name} from cart`}
                             >
@@ -324,7 +355,7 @@ export function CartDrawer() {
                         variant="ghost"
                         size="sm"
                         className="text-muted-foreground hover:text-destructive"
-                        onClick={clearCart}
+                        onClick={persistClearCart}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Clear Cart

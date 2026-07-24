@@ -27,6 +27,7 @@ import {
   Prisma,
 } from '../../generated/prisma/client';
 import { OrdersRepository } from './orders.repository';
+import { mapOrderItems } from './order-response.mapper';
 import { PaymentsService } from '../payments/payments.service';
 import { PromoService } from '../promo/promo.service';
 
@@ -437,7 +438,9 @@ export class OrdersService {
       throw new ForbiddenException('Access denied');
     }
 
-    return order;
+    // Normalize items so `product` matches the documented { id, name, slug,
+    // images } shape rather than leaking raw Prisma `title`/`media` fields.
+    return mapOrderItems(order);
   }
 
   /**

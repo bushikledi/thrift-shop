@@ -4,6 +4,7 @@ import { UpdateUserDto, UpdateUserPreferencesDto } from './dto';
 
 import { PAGINATION } from '../../common/constants';
 import { Prisma } from '../../generated/prisma/client';
+import { mapOrderItems } from '../orders/order-response.mapper';
 
 /** Preferences with every default filled in. */
 export interface ResolvedUserPreferences {
@@ -144,11 +145,27 @@ export class UsersService {
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT_STRICT);
     const skip = (page - 1) * safeLimit;
 
+    // (mapOrderItems imported at top) — normalize order items to the public
+    // product shape so the client sees { id, name, slug, images }.
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where: { buyerId: userId },
         include: {
-          items: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  slug: true,
+                  title: true,
+                  media: {
+                    take: 1,
+                    orderBy: { sortOrder: 'asc' },
+                  },
+                },
+              },
+            },
+          },
           vendor: {
             select: {
               id: true,
@@ -165,7 +182,8 @@ export class UsersService {
     ]);
 
     return {
-      data: orders,
+      // Normalize each order's items to the documented product shape.
+      data: orders.map((order) => mapOrderItems(order)),
       meta: {
         total,
         page,
