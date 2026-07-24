@@ -47,7 +47,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useVendorProducts, useDeleteProduct } from "@/hooks/useProducts";
+import { useDeleteProduct } from "@/hooks/useProducts";
+import { useMyVendorProducts } from "@/hooks/useVendors";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
   Pagination,
@@ -87,10 +88,14 @@ export default function VendorProductsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data, isLoading } = useVendorProducts({
+  // Vendor-scoped listing (only this vendor's products, including inactive/
+  // archived ones) — the generic product list returned the whole catalog, so
+  // acting on a row failed with "you can only delete your own products".
+  const { data, isLoading } = useMyVendorProducts({
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
+    includeInactive: true,
   });
 
   const deleteProductMutation = useDeleteProduct();

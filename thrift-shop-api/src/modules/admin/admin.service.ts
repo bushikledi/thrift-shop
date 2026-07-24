@@ -189,10 +189,34 @@ export class AdminService {
   async deleteUser(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        vendor: { select: { id: true } },
+        _count: { select: { orders: true, reviews: true } },
+      },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Users that own historical data (a vendor storefront, orders as a buyer,
+    // or reviews) cannot be hard-deleted without orphaning records that must be
+    // preserved — a raw delete failed with a foreign-key error. Deactivate
+    // them instead; only genuinely unreferenced accounts are removed outright.
+    const hasReferences =
+      Boolean(user.vendor) ||
+      user._count.orders > 0 ||
+      user._count.reviews > 0;
+
+    if (hasReferences) {
+      await this.prisma.user.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return {
+        message:
+          'User has existing orders, reviews, or a vendor store and was deactivated instead of deleted.',
+      };
     }
 
     await this.prisma.user.delete({ where: { id } });

@@ -99,8 +99,6 @@ export const useAuthStore = create<AuthState>()(
 
       // Logout action
       logout: async () => {
-        const { accessToken } = get();
-
         set({ isLoading: true });
 
         try {
@@ -112,9 +110,11 @@ export const useAuthStore = create<AuthState>()(
             logger.debug("Cart clear failed during logout", { error });
           }
 
-          if (accessToken) {
-            await authApi.logout();
-          }
+          // Auth is cookie-based (accessToken is always null client-side), so
+          // always hit the API to clear the httpOnly cookie. Previously this
+          // was gated on `accessToken`, so the cookie was never cleared and a
+          // refresh logged the user straight back in.
+          await authApi.logout();
         } catch (error) {
           // Log but don't fail - we still want to clear local state
           logger.warn("Logout API call failed", { error });

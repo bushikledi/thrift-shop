@@ -41,8 +41,10 @@ export default function VendorDashboardPage() {
   });
   const { data: statsData, isLoading: statsLoading } = useMyVendorStats();
 
-  const products = Array.isArray(productsData) ? productsData : [];
-  const orders = Array.isArray(ordersData) ? ordersData : [];
+  // Both endpoints return a paginated { data, meta } shape — reading a bare
+  // array previously left "Top products" and "Recent orders" empty.
+  const products = productsData?.data ?? [];
+  const orders = ordersData?.data ?? [];
 
   // Handle vendor profile not found error
   if (productsError || ordersError) {

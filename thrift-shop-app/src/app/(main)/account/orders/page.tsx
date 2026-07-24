@@ -96,9 +96,11 @@ export default function AccountOrdersPage() {
     limit: PAGE_SIZE,
   });
 
-  const orders = Array.isArray(data) ? data : [];
-  const totalPages = 1; // Calculate if needed
-  const totalItems = orders.length;
+  // getOrders returns a paginated { data, meta } shape, not a bare array — the
+  // previous Array.isArray check always failed, so the page showed no orders.
+  const orders = Array.isArray(data) ? data : (data?.data ?? []);
+  const totalPages = data?.meta?.totalPages ?? 1;
+  const totalItems = data?.meta?.total ?? orders.length;
 
   // Filter by tab
   const filteredOrders = orders.filter((order: OrderResponseDto) => {
