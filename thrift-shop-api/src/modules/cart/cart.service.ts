@@ -161,9 +161,12 @@ export class CartService {
 
     // If quantity is 0, remove item
     if (dto.quantity === 0) {
-      return this.prisma.cartItem.delete({
+      await this.prisma.cartItem.delete({
         where: { id: itemId },
       });
+      // Return the full updated cart — the client (and its response contract,
+      // CartResponseDto) expects the cart, not the raw mutated row.
+      return this.getCart(sessionId);
     }
 
     // Check if requested quantity exceeds available stock
@@ -173,15 +176,11 @@ export class CartService {
       throw new BadRequestException(`Only ${item.product.quantity} available`);
     }
 
-    return this.prisma.cartItem.update({
+    await this.prisma.cartItem.update({
       where: { id: itemId },
       data: { quantity: dto.quantity },
-      include: {
-        product: {
-          include: CART_PRODUCT_INCLUDE,
-        },
-      },
     });
+    return this.getCart(sessionId);
   }
 
   async removeItem(sessionId: string, itemId: string) {
@@ -195,9 +194,12 @@ export class CartService {
       );
     }
 
-    return this.prisma.cartItem.delete({
+    await this.prisma.cartItem.delete({
       where: { id: itemId },
     });
+    // Return the full updated cart to match CartResponseDto (the client sets
+    // this straight into its cache).
+    return this.getCart(sessionId);
   }
 
   async clearCart(sessionId: string) {
