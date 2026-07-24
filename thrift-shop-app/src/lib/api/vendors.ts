@@ -77,9 +77,9 @@ export const vendorsApi = {
    * Get current vendor products (includes inactive)
    */
   getMyProducts: (
-    params: PaginationParams & { includeInactive?: boolean }
-  ): Promise<ProductListItemDto[]> =>
-    get<ProductListItemDto[]>("/vendors/me/products", { params }),
+    params: PaginationParams & { includeInactive?: boolean; search?: string }
+  ): Promise<PaginatedProductsResponseDto> =>
+    get<PaginatedProductsResponseDto>("/vendors/me/products", { params }),
 
   /**
    * Get current vendor orders

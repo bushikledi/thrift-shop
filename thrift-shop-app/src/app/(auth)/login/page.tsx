@@ -195,7 +195,13 @@ export default function LoginPage() {
 
               {/* Social login buttons */}
               <div className="grid grid-cols-2 gap-4 w-full">
-                <Button variant="outline" type="button" disabled={loginMutation.isPending}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled
+                  title="Social login is coming soon"
+                  className="opacity-60 cursor-not-allowed"
+                >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
                       fill="currentColor"
@@ -216,7 +222,13 @@ export default function LoginPage() {
                   </svg>
                   Google
                 </Button>
-                <Button variant="outline" type="button" disabled={loginMutation.isPending}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled
+                  title="Social login is coming soon"
+                  className="opacity-60 cursor-not-allowed"
+                >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
                       fill="currentColor"

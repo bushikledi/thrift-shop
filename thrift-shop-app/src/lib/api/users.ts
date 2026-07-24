@@ -8,7 +8,13 @@ import type {
   SavedItemResponseDto,
   OrderResponseDto,
   PaginationParams,
+  PaginationMetaDto,
 } from "@/types";
+
+export interface PaginatedOrdersResponse {
+  data: OrderResponseDto[];
+  meta: PaginationMetaDto;
+}
 
 export interface AddressDto {
   street: string;
@@ -72,8 +78,8 @@ export const usersApi = {
   /**
    * Get user orders
    */
-  getOrders: (params: PaginationParams): Promise<OrderResponseDto[]> =>
-    get<OrderResponseDto[]>("/users/me/orders", { params }),
+  getOrders: (params: PaginationParams): Promise<PaginatedOrdersResponse> =>
+    get<PaginatedOrdersResponse>("/users/me/orders", { params }),
 
   /**
    * Get current user address

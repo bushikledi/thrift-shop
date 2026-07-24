@@ -148,7 +148,7 @@ export function useMyVendorStats() {
  * Get current vendor products
  */
 export function useMyVendorProducts(
-  params: PaginationParams & { includeInactive?: boolean }
+  params: PaginationParams & { includeInactive?: boolean; search?: string }
 ) {
   return useQuery({
     queryKey: queryKeys.vendors.me.products(
