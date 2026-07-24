@@ -545,7 +545,7 @@ export default function AdminVendorsPage() {
         open={!!selectedVendor}
         onOpenChange={() => setSelectedVendor(null)}
       >
-        <SheetContent className="sm:max-w-lg">
+        <SheetContent className="flex h-full flex-col overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Vendor Details</SheetTitle>
             <SheetDescription>
