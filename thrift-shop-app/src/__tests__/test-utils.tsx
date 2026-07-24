@@ -7,7 +7,7 @@ import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Create a fresh query client for each test
-function createTestQueryClient() {
+export function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -54,8 +54,6 @@ export { userEvent } from "@testing-library/user-event";
 // Override render
 export { customRender as render };
 
-// Additional test utilities
-export const createTestQueryClient = createTestQueryClient;
 
 // Mock API response helper
 export function mockApiResponse<T>(data: T, delay = 0): Promise<T> {

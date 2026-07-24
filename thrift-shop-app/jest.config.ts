@@ -17,12 +17,11 @@ const config: Config = {
     "<rootDir>/node_modules/",
     "<rootDir>/.next/",
     "<rootDir>/e2e/",
+    "<rootDir>/src/__tests__/test-utils.tsx",
   ],
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/$1",
-    "^@/src/(.*)$": "<rootDir>/src/$1",
-    "^@/components/(.*)$": "<rootDir>/components/$1",
-    "^@/lib/(.*)$": "<rootDir>/lib/$1",
+    // Matches the tsconfig path alias: @/* -> ./src/*
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
