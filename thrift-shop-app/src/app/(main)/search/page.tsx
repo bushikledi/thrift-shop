@@ -30,7 +30,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useSearch } from "@/hooks/useSearch";
 import { useCategories } from "@/hooks/useCategories";
 import { useAddToCart } from "@/hooks/useCart";
@@ -415,7 +415,7 @@ function SearchContent() {
                       </p>
                       <div className="flex items-center justify-between mt-2">
                         <p className="font-semibold">
-                          ${product.price?.toFixed(2)}
+                          {formatCurrency(product.price)}
                         </p>
                         <Badge variant="outline" className="text-xs capitalize">
                           {product.condition?.replace("_", " ")}
@@ -472,7 +472,7 @@ function SearchContent() {
                       </p>
                       <div className="flex items-center gap-4 mt-2">
                         <p className="font-semibold text-lg">
-                          ${product.price?.toFixed(2)}
+                          {formatCurrency(product.price)}
                         </p>
                         <Badge variant="outline" className="capitalize">
                           {product.condition?.replace("_", " ")}
