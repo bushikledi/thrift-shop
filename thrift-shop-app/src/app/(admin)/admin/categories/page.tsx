@@ -179,7 +179,6 @@ export default function AdminCategoriesPage() {
             parentId: data.parentId || undefined,
           },
         });
-        toast.success("Category updated");
       } else {
         await createMutation.mutateAsync({
           ...data,
@@ -187,13 +186,12 @@ export default function AdminCategoriesPage() {
           isActive: data.isActive ?? true,
           sortOrder: data.sortOrder ?? 0,
         });
-        toast.success("Category created");
       }
+      // Success/error toasts are emitted by the mutation hooks; don't duplicate
+      // them here (that showed two toasts per action).
       handleCloseDialog();
     } catch {
-      toast.error(
-        editCategory ? "Failed to update category" : "Failed to create category"
-      );
+      // Error toast already shown by the mutation's onError.
     }
   };
 

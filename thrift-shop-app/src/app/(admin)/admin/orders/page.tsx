@@ -194,7 +194,7 @@ export default function AdminOrdersPage() {
   };
 
   const getStatusIcon = (orderStatus: string) => {
-    const config = statusConfig[orderStatus as OrderStatus];
+    const config = statusConfig[orderStatus.toLowerCase() as OrderStatus];
     return config?.icon || Clock;
   };
 
@@ -328,7 +328,7 @@ export default function AdminOrdersPage() {
                 {orders.map((order: Order) => {
                   const StatusIcon = getStatusIcon(order.status);
                   const statusInfo =
-                    statusConfig[order.status as OrderStatus] ||
+                    statusConfig[order.status.toLowerCase() as OrderStatus] ||
                     statusConfig.pending;
 
                   return (
@@ -454,12 +454,12 @@ export default function AdminOrdersPage() {
                 <h4 className="text-sm font-medium mb-2">Status</h4>
                 <Badge
                   variant={
-                    statusConfig[selectedOrder.status as OrderStatus]
+                    statusConfig[selectedOrder.status.toLowerCase() as OrderStatus]
                       ?.variant || "outline"
                   }
                   className="text-sm"
                 >
-                  {statusConfig[selectedOrder.status as OrderStatus]?.label ||
+                  {statusConfig[selectedOrder.status.toLowerCase() as OrderStatus]?.label ||
                     selectedOrder.status}
                 </Badge>
               </div>

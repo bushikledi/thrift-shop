@@ -7,7 +7,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -47,11 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
-import {
-  useDeleteProduct,
-  useUpdateProduct,
-  useCreateProduct,
-} from "@/hooks/useProducts";
+import { useDeleteProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { useMyVendorProducts } from "@/hooks/useVendors";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -81,6 +77,7 @@ const conditionLabels: Record<ProductCondition, string> = {
 
 export default function VendorProductsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "all");
@@ -104,7 +101,6 @@ export default function VendorProductsPage() {
 
   const deleteProductMutation = useDeleteProduct();
   const updateProductMutation = useUpdateProduct();
-  const createProductMutation = useCreateProduct();
 
   const handleToggleArchive = async (product: ProductListItemDto) => {
     try {
@@ -120,30 +116,21 @@ export default function VendorProductsPage() {
     }
   };
 
-  const handleDuplicate = async (product: ProductListItemDto) => {
-    try {
-      await createProductMutation.mutateAsync({
-        title: `${product.title} (Copy)`,
-        price: Number(product.price),
-        comparePrice: product.comparePrice
-          ? Number(product.comparePrice)
-          : undefined,
-        quantity: product.quantity,
-        condition: product.condition,
-        categoryId: product.category?.id,
-        isUnique: true,
-        // Start the copy as an inactive draft so it isn't sold accidentally.
-        isActive: false,
-      });
-      toast.success("Product duplicated as a draft");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to duplicate product"
-      );
-    }
+  // Duplicate opens the create form pre-filled from this product, so the vendor
+  // reviews/edits before saving (rather than a silent copy).
+  const handleDuplicate = (product: ProductListItemDto) => {
+    router.push(`/vendor/products/new?from=${product.slug}`);
   };
 
-  const products = data?.data || [];
+  const allProducts = data?.data || [];
+  // The status dropdown (all/active/archived) filters the fetched list, which
+  // includes inactive products. Previously the dropdown changed state but was
+  // never applied.
+  const products = allProducts.filter((p: ProductListItemDto) => {
+    if (status === "active") return p.isActive;
+    if (status === "archived") return !p.isActive;
+    return true;
+  });
   const totalPages = data?.meta?.totalPages || 1;
   const totalItems = data?.meta?.total || 0;
 
