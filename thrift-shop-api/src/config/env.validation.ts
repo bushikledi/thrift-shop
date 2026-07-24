@@ -84,6 +84,14 @@ export class EnvironmentVariables {
   @IsOptional()
   EMAIL_FROM?: string;
 
+  // Local/self-hosted SMTP (e.g. Mailpit). Used when SENDGRID_API_KEY is unset.
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsOptional()
+  SMTP_PORT?: string;
+
   // SMS
   @IsString()
   @IsOptional()
