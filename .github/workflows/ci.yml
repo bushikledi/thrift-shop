@@ -137,7 +137,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test:app || true
+        run: npm run test:app
 
       - name: Build App
         run: npm run build:app
@@ -224,12 +224,14 @@ jobs:
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
-      - name: Deploy notification
+      # PLACEHOLDER: this job only logs the image tags. Wire up a real
+      # deployment (kubectl / docker compose / your host of choice) before
+      # relying on it — until then it is a no-op that always succeeds.
+      - name: Deploy notification (placeholder — not a real deploy)
         run: |
-          echo "🚀 Deploying to staging environment..."
+          echo "🚀 [placeholder] Would deploy to staging..."
           echo "API Image: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:develop"
           echo "App Image: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:develop"
-      # Add actual deployment steps here (e.g., kubectl, docker-compose, etc.)
 
   # ================================
   # Deploy to Production
@@ -241,12 +243,14 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment: production
     steps:
-      - name: Deploy notification
+      # PLACEHOLDER: this job only logs the image tags. Wire up a real
+      # deployment before relying on it — until then it is a no-op that always
+      # succeeds.
+      - name: Deploy notification (placeholder — not a real deploy)
         run: |
-          echo "🚀 Deploying to production environment..."
+          echo "🚀 [placeholder] Would deploy to production..."
           echo "API Image: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:latest"
           echo "App Image: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:latest"
-      # Add actual deployment steps here
 
   # ================================
   # Security Scan

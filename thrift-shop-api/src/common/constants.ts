@@ -45,4 +45,6 @@ export const MEDIA = {
   THUMB_WIDTH: 300,
   // Longest edge for detail views; images smaller than this are not upscaled.
   MEDIUM_WIDTH: 900,
+  // Max uploads processed at once by createMany (each also builds renditions).
+  UPLOAD_CONCURRENCY: 4,
 } as const;

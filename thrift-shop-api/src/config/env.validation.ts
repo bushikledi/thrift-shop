@@ -84,6 +84,14 @@ export class EnvironmentVariables {
   @IsOptional()
   EMAIL_FROM?: string;
 
+  // Local/self-hosted SMTP (e.g. Mailpit). Used when SENDGRID_API_KEY is unset.
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsOptional()
+  SMTP_PORT?: string;
+
   // SMS
   @IsString()
   @IsOptional()
@@ -133,9 +141,26 @@ export class EnvironmentVariables {
 }
 
 export function validate(config: Record<string, unknown>) {
-  const validatedConfig = plainToInstance(EnvironmentVariables, config, {
-    enableImplicitConversion: true,
-  });
+  // Treat empty strings as "not set".
+  //
+  // docker compose substitutes an unset variable to an empty string (e.g.
+  // `ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}`), and class-validator's @IsOptional()
+  // only skips undefined/null - so an empty value would still be measured
+  // against rules like @MinLength and crash the app at boot. Stripping them
+  // here lets every optional variable fall back to its default.
+  const normalizedConfig = Object.fromEntries(
+    Object.entries(config).filter(
+      ([, value]) => !(typeof value === 'string' && value.trim() === ''),
+    ),
+  );
+
+  const validatedConfig = plainToInstance(
+    EnvironmentVariables,
+    normalizedConfig,
+    {
+      enableImplicitConversion: true,
+    },
+  );
 
   const errors = validateSync(validatedConfig, {
     skipMissingProperties: false,

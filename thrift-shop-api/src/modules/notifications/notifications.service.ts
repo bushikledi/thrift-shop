@@ -74,6 +74,8 @@ export class NotificationsService {
   private readonly twilioSid: string;
   private readonly twilioToken: string;
   private readonly twilioPhone: string;
+  private readonly smtpHost: string;
+  private readonly smtpPort: number;
 
   constructor(
     private prisma: PrismaService,
@@ -90,6 +92,8 @@ export class NotificationsService {
     this.twilioSid = this.configService.get<string>('TWILIO_SID', '');
     this.twilioToken = this.configService.get<string>('TWILIO_TOKEN', '');
     this.twilioPhone = this.configService.get<string>('TWILIO_PHONE', '');
+    this.smtpHost = this.configService.get<string>('SMTP_HOST', '');
+    this.smtpPort = Number(this.configService.get<string>('SMTP_PORT', '1025'));
   }
 
   async send(dto: SendNotificationDto) {
@@ -171,13 +175,44 @@ export class NotificationsService {
       }
     }
 
-    // Development mode: log email content
-    this.logger.debug('Development mode - Email content:');
+    // Local/self-hosted SMTP (e.g. Mailpit in docker compose). This is what
+    // makes emails actually show up in the Mailpit inbox during development,
+    // instead of only being logged.
+    if (this.smtpHost) {
+      try {
+        const nodemailer = await import('nodemailer');
+        const transport = nodemailer.createTransport({
+          host: this.smtpHost,
+          port: this.smtpPort,
+          secure: false,
+          // Mailpit accepts any/no credentials; skip TLS verification locally.
+          tls: { rejectUnauthorized: false },
+        });
+
+        await transport.sendMail({
+          to: dto.to,
+          from: this.emailFrom,
+          subject: dto.subject,
+          html: htmlContent,
+        });
+
+        this.logger.log(`Email sent via SMTP (${this.smtpHost}) to ${dto.to}`);
+        return { success: true, message: 'Email sent via SMTP' };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(`Failed to send email via SMTP: ${errorMessage}`);
+        return { success: false, message: errorMessage };
+      }
+    }
+
+    // No transport configured: log the email content.
+    this.logger.debug('No email transport configured - logging content:');
     this.logger.debug(`To: ${dto.to}`);
     this.logger.debug(`Subject: ${dto.subject}`);
     this.logger.debug(`Content: ${htmlContent.substring(0, 200)}...`);
 
-    return { success: true, message: 'Email logged (development mode)' };
+    return { success: true, message: 'Email logged (no transport configured)' };
   }
 
   async sendSms(dto: SendSmsDto) {
