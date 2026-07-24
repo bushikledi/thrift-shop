@@ -34,14 +34,20 @@ thrift-shop/
 │   ├── src/
 │   │   ├── modules/
 │   │   │   ├── auth/         # Authentication & authorization
-│   │   │   ├── users/        # User management
-│   │   │   ├── vendors/      # Vendor profiles & onboarding
-│   │   │   ├── products/     # Product CRUD & search
+│   │   │   ├── users/        # User management, preferences
+│   │   │   ├── vendors/      # Vendor profiles, settings, analytics
+│   │   │   ├── products/     # Product CRUD
 │   │   │   ├── categories/   # Hierarchical categories
-│   │   │   ├── orders/       # Order management
+│   │   │   ├── orders/       # Order management & checkout
 │   │   │   ├── cart/         # Cart sessions (guest + auth)
-│   │   │   ├── media/        # File uploads, S3 integration
-│   │   │   └── notifications/# Email, SMS, push
+│   │   │   ├── payments/     # Stripe Checkout + webhook
+│   │   │   ├── promo/        # Promo codes
+│   │   │   ├── media/        # File uploads, S3, thumbnails
+│   │   │   ├── reviews/      # Product & vendor reviews
+│   │   │   ├── search/       # Search & suggestions
+│   │   │   ├── admin/        # Admin panel, moderation, analytics
+│   │   │   ├── notifications/# Email (SendGrid) + SMS (Twilio)
+│   │   │   └── health/       # Liveness / readiness probes
 │   │   ├── common/           # Shared guards, pipes, filters
 │   │   ├── config/           # Environment configuration
 │   │   └── prisma/           # Database client module
@@ -83,25 +89,28 @@ thrift-shop/
 git clone https://github.com/yourusername/thrift-shop.git
 cd thrift-shop
 
-# Copy environment variables
+# Copy environment variables and set a JWT secret (required, min 64 chars)
 cp .env.example .env
+echo "JWT_SECRET=$(openssl rand -hex 48)" >> .env
 
-# Start all services (infrastructure + apps)
+# Start all services. Migrations run automatically via the api-migrate
+# service before the API starts, so there is no separate migrate step.
 docker compose up -d
 
-# Run database migrations
-docker compose exec api npx prisma migrate deploy
-
-# Seed the database (optional)
-docker compose exec api npm run db:seed
+# Seed the database with sample data (optional)
+docker compose run --rm api-migrate npm run db:seed
 ```
+
+> **Note:** `JWT_SECRET` is required — the API refuses to start with a secret
+> under 64 characters. All other secrets (`ENCRYPTION_KEY`, `STRIPE_*`) are
+> optional and fall back to safe defaults.
 
 **Services:**
 - Frontend: http://localhost:3001
 - API: http://localhost:3000
-- API Docs (Swagger): http://localhost:3000/api/docs
+- API Docs (Swagger): http://localhost:3000/api/v1/docs
 - MinIO Console: http://localhost:9001
-- MailHog (Email UI): http://localhost:8025
+- Mailpit (Email UI): http://localhost:8025
 
 ### Option 2: Development Mode (Hot Reload)
 
@@ -216,7 +225,7 @@ docker compose down -v
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-# Required for production
+# Required — the API refuses to boot with a JWT secret under 64 characters
 JWT_SECRET=your-64-character-minimum-secret-key
 POSTGRES_PASSWORD=strong-password
 MINIO_ROOT_PASSWORD=strong-password
@@ -224,6 +233,12 @@ MINIO_ROOT_PASSWORD=strong-password
 # API URLs
 NEXT_PUBLIC_API_URL=http://localhost:3000  # For frontend
 CORS_ORIGINS=http://localhost:3001         # For backend
+
+# Optional — safe defaults are used when unset
+ENCRYPTION_KEY=          # 64-char hex for encrypting vendor payout details;
+                         # derived from JWT_SECRET if unset (openssl rand -hex 32)
+STRIPE_SECRET_KEY=       # Enables card checkout; COD-only when unset
+STRIPE_WEBHOOK_SECRET=   # From `stripe listen` (see Payments section)
 ```
 
 See `.env.example` for all available options.
@@ -295,15 +310,20 @@ the same event are idempotent.
 
 ## API Documentation
 
-Swagger UI is available at: `http://localhost:3000/api/docs`
+All routes are served under the `/api/v1` prefix. Interactive Swagger UI is
+available in non-production at: `http://localhost:3000/api/v1/docs`
 
 Key endpoints:
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/products` - List products
-- `GET /api/categories` - List categories
-- `POST /api/cart/items` - Add to cart
-- `POST /api/orders` - Create order
+- `POST /api/v1/auth/signup` — Register
+- `POST /api/v1/auth/login` — Log in (sets an HttpOnly cookie)
+- `GET /api/v1/products` — List products
+- `GET /api/v1/categories` — List categories
+- `POST /api/v1/cart/items` — Add to cart
+- `POST /api/v1/promo/validate` — Check a promo code
+- `POST /api/v1/orders/checkout` — Create order (COD or Stripe)
+- `POST /api/v1/orders/track` — Track a guest order (order number + email)
+- `GET /api/v1/admin/analytics` — Platform analytics (admin)
+- `GET /api/v1/vendors/me/analytics` — Store analytics (vendor)
 
 ---
 
