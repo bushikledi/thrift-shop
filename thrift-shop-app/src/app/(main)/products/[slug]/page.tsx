@@ -95,7 +95,7 @@ export default function ProductDetailPage() {
 
   if (isError || !product) {
     return (
-      <div className="container py-16 text-center">
+      <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">Product not found</h1>
         <p className="mt-2 text-muted-foreground">
           {error?.message || "The product you're looking for doesn't exist."}
@@ -208,7 +208,7 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="container py-8">
+    <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <Breadcrumb className="mb-6">
         <BreadcrumbList>

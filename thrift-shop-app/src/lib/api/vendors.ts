@@ -12,6 +12,7 @@ import type {
   ReviewListResponseDto,
   OrderResponseDto,
   PaginationParams,
+  PaginationMetaDto,
 } from "@/types";
 
 export interface VendorAnalytics {
@@ -86,8 +87,11 @@ export const vendorsApi = {
    */
   getMyOrders: (
     params: PaginationParams & { status?: string }
-  ): Promise<OrderResponseDto[]> =>
-    get<OrderResponseDto[]>("/vendors/me/orders", { params }),
+  ): Promise<{ data: OrderResponseDto[]; meta: PaginationMetaDto }> =>
+    get<{ data: OrderResponseDto[]; meta: PaginationMetaDto }>(
+      "/vendors/me/orders",
+      { params }
+    ),
 
   /**
    * Get a specific vendor order

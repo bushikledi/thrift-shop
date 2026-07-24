@@ -316,7 +316,7 @@ export default function CheckoutPage() {
 
   if (cartLoading) {
     return (
-      <div className="container py-4 sm:py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         <LoadingSkeleton className="h-[600px] w-full" />
       </div>
     );
@@ -324,14 +324,14 @@ export default function CheckoutPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="container py-16">
+      <div className="container mx-auto px-4 py-16">
         <EmptyCart />
       </div>
     );
   }
 
   return (
-    <div className="container py-8">
+    <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
         <Link

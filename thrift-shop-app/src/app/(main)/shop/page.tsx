@@ -143,6 +143,33 @@ export default function ShopPage() {
     return category?.id || "";
   }, [categoryId, categories]);
 
+  // Human-readable name for the active category chip. `categoryId` may be a
+  // UUID or a slug, and may point at a subcategory, so search the whole tree
+  // (top-level + children) by either key.
+  const selectedCategoryName = useMemo(() => {
+    if (!categoryId) return "";
+    const matches = (c: { id: string; slug: string }) =>
+      c.id === categoryId || c.slug === categoryId;
+    const findDeep = (
+      cats: Array<{
+        id: string;
+        slug: string;
+        name: string;
+        children?: Array<{ id: string; slug: string; name: string }>;
+      }>
+    ): { name: string } | undefined => {
+      for (const c of cats) {
+        if (matches(c)) return c;
+        if (c.children?.length) {
+          const found = findDeep(c.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    return findDeep(categories)?.name ?? "";
+  }, [categoryId, categories]);
+
   // Update URL when filters change
   const updateURL = useCallback(
     (updates: Record<string, string | number | undefined>) => {
@@ -277,7 +304,10 @@ export default function ShopPage() {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-80">
+            <SheetContent
+              side="left"
+              className="w-80 overflow-y-auto"
+            >
               <div className="py-4">
                 <h2 className="mb-4 text-lg font-semibold">Filters</h2>
                 <ProductFilters {...filterProps} />
@@ -341,8 +371,7 @@ export default function ShopPage() {
               size="sm"
               onClick={() => handleCategoryChange("")}
             >
-              {categories.find((c: { id: string }) => c.id === categoryId)
-                ?.name || "Category"}
+              {selectedCategoryName || "Category"}
               <X className="ml-2 h-3 w-3" />
             </Button>
           )}
@@ -376,7 +405,9 @@ export default function ShopPage() {
       <div className="flex gap-8">
         {/* Sidebar Filters (Desktop) */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <div className="sticky top-24">
+          {/* Scroll the filter panel independently of the product grid so long
+              filter lists are reachable without scrolling the whole page. */}
+          <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2">
             <h2 className="mb-4 text-lg font-semibold">Filters</h2>
             <ProductFilters {...filterProps} />
           </div>
