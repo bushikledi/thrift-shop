@@ -47,7 +47,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useDeleteProduct } from "@/hooks/useProducts";
+import {
+  useDeleteProduct,
+  useUpdateProduct,
+  useCreateProduct,
+} from "@/hooks/useProducts";
 import { useMyVendorProducts } from "@/hooks/useVendors";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -99,6 +103,45 @@ export default function VendorProductsPage() {
   });
 
   const deleteProductMutation = useDeleteProduct();
+  const updateProductMutation = useUpdateProduct();
+  const createProductMutation = useCreateProduct();
+
+  const handleToggleArchive = async (product: ProductListItemDto) => {
+    try {
+      await updateProductMutation.mutateAsync({
+        id: product.id,
+        data: { isActive: !product.isActive },
+      });
+      toast.success(product.isActive ? "Product archived" : "Product restored");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update product"
+      );
+    }
+  };
+
+  const handleDuplicate = async (product: ProductListItemDto) => {
+    try {
+      await createProductMutation.mutateAsync({
+        title: `${product.title} (Copy)`,
+        price: Number(product.price),
+        comparePrice: product.comparePrice
+          ? Number(product.comparePrice)
+          : undefined,
+        quantity: product.quantity,
+        condition: product.condition,
+        categoryId: product.category?.id,
+        isUnique: true,
+        // Start the copy as an inactive draft so it isn't sold accidentally.
+        isActive: false,
+      });
+      toast.success("Product duplicated as a draft");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to duplicate product"
+      );
+    }
+  };
 
   const products = data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
@@ -265,7 +308,7 @@ export default function VendorProductsPage() {
                         </div>
                         <div>
                           <Link
-                            href={`/vendor/products/${product.id}`}
+                            href={`/vendor/products/${product.slug}/edit`}
                             className="font-medium hover:text-primary"
                           >
                             {product.title}
@@ -335,18 +378,22 @@ export default function VendorProductsPage() {
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/vendor/products/${product.id}/edit`}>
+                            <Link href={`/vendor/products/${product.slug}/edit`}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDuplicate(product)}
+                          >
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleToggleArchive(product)}
+                          >
                             <Archive className="mr-2 h-4 w-4" />
-                            Archive
+                            {product.isActive ? "Archive" : "Restore"}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
