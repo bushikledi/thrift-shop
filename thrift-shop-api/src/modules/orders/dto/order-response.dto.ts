@@ -35,6 +35,12 @@ export class OrderItemResponseDto {
   price!: number;
 
   @ApiProperty({
+    description: 'Product name snapshot at time of order',
+    example: 'Levi\'s Vintage Denim Jacket',
+  })
+  title!: string;
+
+  @ApiProperty({
     description: 'Product information',
     type: OrderItemProductDto,
   })
