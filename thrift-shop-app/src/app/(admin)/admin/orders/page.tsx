@@ -154,7 +154,43 @@ export default function AdminOrdersPage() {
   };
 
   const handleExportOrders = () => {
-    toast.success("Orders exported to CSV");
+    if (orders.length === 0) {
+      toast.error("No orders to export");
+      return;
+    }
+    const headers = [
+      "Order Number",
+      "Status",
+      "Payment Status",
+      "Total",
+      "Created At",
+    ];
+    const escape = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = orders.map((o) =>
+      [
+        o.orderNumber,
+        o.status,
+        (o as { paymentStatus?: string }).paymentStatus ?? "",
+        o.total,
+        o.createdAt,
+      ]
+        .map(escape)
+        .join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${orders.length} orders to CSV`);
   };
 
   const getStatusIcon = (orderStatus: string) => {
