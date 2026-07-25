@@ -11,6 +11,7 @@ import { queryKeys } from "./queryKeys";
 import type {
   UpdateVendorDto,
   VendorDetailDto,
+  VendorListParams,
   PaginationParams,
 } from "@/types";
 import { ApiError } from "@/lib/apiClient";
@@ -22,7 +23,7 @@ import { ApiError } from "@/lib/apiClient";
 /**
  * Get all vendors
  */
-export function useVendors(params: PaginationParams & { verified?: boolean }) {
+export function useVendors(params: VendorListParams) {
   return useQuery({
     queryKey: queryKeys.vendors.list(
       params as unknown as Record<string, unknown>

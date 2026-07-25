@@ -61,7 +61,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { useAdminReviews, useAdminDeleteReview } from "@/hooks/useAdmin";
+import {
+  useAdminReviews,
+  useAdminDeleteReview,
+  useAdminStats,
+} from "@/hooks/useAdmin";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
   Pagination,
@@ -171,10 +175,16 @@ export default function AdminReviewsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // Filters go to the API. Refining only the current page meant a search could
+  // report "no reviews" while matches sat on page two.
   const { data, isLoading } = useAdminReviews({
     page,
     limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+    rating: rating !== "all" ? parseInt(rating, 10) : undefined,
+    isVerified: verified === "all" ? undefined : verified === "verified",
   });
+  const { data: adminStats } = useAdminStats();
 
   const deleteReviewMutation = useAdminDeleteReview();
 
@@ -206,40 +216,24 @@ export default function AdminReviewsPage() {
   const totalPages = response?.meta?.totalPages || 1;
   const totalItems = response?.meta?.total || reviews.length;
 
-  // Client-side refinement of the current page.
-  const filteredReviews = reviews.filter((review) => {
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      if (
-        !review.comment?.toLowerCase().includes(searchLower) &&
-        !review.title?.toLowerCase().includes(searchLower) &&
-        !review.user.name.toLowerCase().includes(searchLower) &&
-        !review.product?.title?.toLowerCase().includes(searchLower)
-      ) {
-        return false;
-      }
-    }
-    if (verified === "verified" && !review.isVerified) {
-      return false;
-    }
-    if (verified === "unverified" && review.isVerified) {
-      return false;
-    }
-    if (rating !== "all" && review.rating !== parseInt(rating, 10)) {
-      return false;
-    }
-    return true;
-  });
+  // The API has already applied search, rating and verified.
+  const filteredReviews = reviews;
 
-  // Stats for the current page of reviews.
+  // Platform-wide totals, so the cards describe the whole moderation queue
+  // rather than the fifteen rows on screen.
+  const platformStats = adminStats as
+    | {
+        totalReviews?: number;
+        verifiedReviews?: number;
+        avgReviewRating?: number;
+      }
+    | undefined;
+  const totalReviews = platformStats?.totalReviews ?? totalItems;
   const stats = {
-    total: totalItems,
-    verified: reviews.filter((r) => r.isVerified).length,
-    unverified: reviews.filter((r) => !r.isVerified).length,
-    avgRating:
-      reviews.length > 0
-        ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
-        : 0,
+    total: totalReviews,
+    verified: platformStats?.verifiedReviews ?? 0,
+    unverified: totalReviews - (platformStats?.verifiedReviews ?? 0),
+    avgRating: platformStats?.avgReviewRating ?? 0,
   };
 
   const handleDeleteReview = async () => {
@@ -281,7 +275,7 @@ export default function AdminReviewsPage() {
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-yellow-500" />
               <p className="text-sm text-muted-foreground">
-                Avg Rating (page)
+                Avg Rating
               </p>
             </div>
             <p className="text-2xl font-bold">{stats.avgRating.toFixed(1)}</p>
@@ -292,7 +286,7 @@ export default function AdminReviewsPage() {
             <div className="flex items-center gap-2">
               <BadgeCheck className="h-4 w-4 text-green-600" />
               <p className="text-sm text-muted-foreground">
-                Verified (page)
+                Verified
               </p>
             </div>
             <p className="text-2xl font-bold">{stats.verified}</p>
@@ -303,7 +297,7 @@ export default function AdminReviewsPage() {
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Unverified (page)
+                Unverified
               </p>
             </div>
             <p className="text-2xl font-bold">{stats.unverified}</p>
@@ -318,11 +312,20 @@ export default function AdminReviewsPage() {
           <Input
             placeholder="Search reviews..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
-        <Select value={rating} onValueChange={setRating}>
+        <Select
+          value={rating}
+          onValueChange={(v) => {
+            setRating(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Rating" />
           </SelectTrigger>
@@ -334,7 +337,13 @@ export default function AdminReviewsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={verified} onValueChange={setVerified}>
+        <Select
+          value={verified}
+          onValueChange={(v) => {
+            setVerified(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Verification" />
           </SelectTrigger>

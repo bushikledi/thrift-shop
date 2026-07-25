@@ -19,7 +19,11 @@ import {
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { VendorsService } from './vendors.service';
-import { UpdateVendorDto, VendorDashboardStatsDto } from './dto';
+import {
+  UpdateVendorDto,
+  VendorDashboardStatsDto,
+  VendorQueryDto,
+} from './dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { Public, Roles, CurrentUser } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
@@ -46,12 +50,8 @@ export class VendorsController {
     description: 'List of vendors',
     type: [VendorDetailDto],
   })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('verified') verified?: boolean,
-  ) {
-    return this.vendorsService.findAll(page || 1, limit || 20, verified);
+  async findAll(@Query() query: VendorQueryDto) {
+    return this.vendorsService.findAll(query);
   }
 
   @Get('me/profile')

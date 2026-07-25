@@ -236,6 +236,12 @@ export interface ReviewsListParams {
 export interface SearchParams {
   q?: string;
   types?: string;
+  categoryId?: string;
+  /** Comma-separated ProductCondition values. */
+  conditions?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: "relevance" | "newest" | "price_asc" | "price_desc";
   page?: number;
   limit?: number;
 }
@@ -264,6 +270,34 @@ export interface AdminOrdersParams {
   search?: string;
   sortBy?: "createdAt" | "total" | "status";
   sortOrder?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+}
+
+export interface VendorListParams {
+  search?: string;
+  verified?: boolean;
+  sortBy?: "rating" | "products" | "createdAt" | "displayName";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminProductsParams {
+  search?: string;
+  categoryId?: string;
+  condition?: ProductCondition;
+  includeInactive?: boolean;
+  sortBy?: "createdAt" | "price" | "viewCount" | "title";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminReviewsParams {
+  search?: string;
+  rating?: number;
+  isVerified?: boolean;
   page?: number;
   limit?: number;
 }

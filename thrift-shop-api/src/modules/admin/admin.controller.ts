@@ -9,7 +9,6 @@ import {
   Body,
   UseGuards,
   ParseUUIDPipe,
-  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,6 +28,8 @@ import {
   AdminVendorQueryDto,
   AdminUpdateVendorDto,
   AdminOrderQueryDto,
+  AdminProductQueryDto,
+  AdminReviewQueryDto,
   AdminStatsResponseDto,
   AuditLogResponseDto,
   AdminReviewResponseDto,
@@ -236,17 +237,8 @@ export class AdminController {
     description: 'List of products',
     type: [ProductListItemDto],
   })
-  async getProducts(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('includeInactive', new ParseBoolPipe({ optional: true }))
-    includeInactive?: boolean,
-  ) {
-    return this.adminService.getProducts(
-      Number(page) || 1,
-      Number(limit) || 20,
-      includeInactive ?? true,
-    );
+  async getProducts(@Query() query: AdminProductQueryDto) {
+    return this.adminService.getProducts(query);
   }
 
   @Post('products/:id/toggle-featured')
@@ -287,11 +279,8 @@ export class AdminController {
     description: 'List of reviews',
     type: [AdminReviewResponseDto],
   })
-  async getReviews(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.adminService.getReviews(page || 1, limit || 20);
+  async getReviews(@Query() query: AdminReviewQueryDto) {
+    return this.adminService.getReviews(query);
   }
 
   @Delete('reviews/:id')

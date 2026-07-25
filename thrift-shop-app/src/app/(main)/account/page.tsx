@@ -24,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useUserProfile } from "@/hooks/useUsers";
 import { useUpdateUserProfile } from "@/hooks/useUsers";
 import { FieldError } from "@/components/forms/field-error";
 
@@ -38,6 +39,16 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function AccountProfilePage() {
   const { user, updateUser } = useAuthStore();
+  const { data: profile } = useUserProfile();
+
+  const profileCounts = (
+    profile as { _count?: { orders?: number; reviews?: number; savedItems?: number } }
+  )?._count;
+  const accountCounts = {
+    orders: profileCounts?.orders ?? 0,
+    reviews: profileCounts?.reviews ?? 0,
+    savedItems: profileCounts?.savedItems ?? 0,
+  };
   const [isEditing, setIsEditing] = useState(false);
 
   const updateProfileMutation = useUpdateUserProfile();
@@ -203,17 +214,25 @@ export default function AccountProfilePage() {
           <CardTitle>Account Statistics</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Counts come from /users/me. They were hardcoded to 0, so an
+              account with orders and reviews still read as empty. */}
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-3xl font-bold">0</p>
+              <p className="text-3xl font-bold tabular-nums">
+                {accountCounts.orders}
+              </p>
               <p className="text-sm text-muted-foreground">Orders Placed</p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-3xl font-bold">0</p>
+              <p className="text-3xl font-bold tabular-nums">
+                {accountCounts.reviews}
+              </p>
               <p className="text-sm text-muted-foreground">Reviews Written</p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-3xl font-bold">0</p>
+              <p className="text-3xl font-bold tabular-nums">
+                {accountCounts.savedItems}
+              </p>
               <p className="text-sm text-muted-foreground">Saved Items</p>
             </div>
           </div>

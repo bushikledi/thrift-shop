@@ -40,20 +40,25 @@ import type { ProductListItemDto } from "@/types";
 
 const PAGE_SIZE = 20;
 
+const MAX_PRICE = 1000;
+
+// "Highest Rated" is gone: products carry no rating column, so the option
+// could only ever have been a relabelled version of another ordering.
 const sortOptions = [
   { value: "relevance", label: "Most Relevant" },
   { value: "newest", label: "Newest" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
-  { value: "rating", label: "Highest Rated" },
 ];
 
+// Values are the ProductCondition enum the API stores. They were lowercase —
+// and listed a "New" that does not exist — so nothing could ever match.
 const conditionOptions = [
-  { value: "new", label: "New" },
-  { value: "like_new", label: "Like New" },
-  { value: "good", label: "Good" },
-  { value: "fair", label: "Fair" },
-  { value: "poor", label: "Poor" },
+  { value: "LIKE_NEW", label: "Like New" },
+  { value: "VERY_GOOD", label: "Very Good" },
+  { value: "GOOD", label: "Good" },
+  { value: "FAIR", label: "Fair" },
+  { value: "POOR", label: "Poor" },
 ];
 
 function SearchContent() {
@@ -70,17 +75,24 @@ function SearchContent() {
   const [sort, setSort] = useState(initialSort);
   const [page, setPage] = useState(initialPage);
   const [conditions, setConditions] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, MAX_PRICE]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
 
+  // Category, condition, price and sort all reach the API now. They were held
+  // in state and never sent, so every one of these controls was decoration.
   const { data, isLoading } = useSearch({
     q: query,
     page,
     limit: PAGE_SIZE,
+    categoryId: category || undefined,
+    conditions: conditions.length > 0 ? conditions.join(",") : undefined,
+    minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+    maxPrice: priceRange[1] < MAX_PRICE ? priceRange[1] : undefined,
+    sort: sort as "relevance" | "newest" | "price_asc" | "price_desc",
   });
 
   const addToCartMutation = useAddToCart();
@@ -128,7 +140,7 @@ function SearchContent() {
   const clearFilters = () => {
     setCategory("");
     setConditions([]);
-    setPriceRange([0, 1000]);
+    setPriceRange([0, MAX_PRICE]);
     setSort("relevance");
   };
 
@@ -136,7 +148,7 @@ function SearchContent() {
     category ||
     conditions.length > 0 ||
     priceRange[0] > 0 ||
-    priceRange[1] < 1000;
+    priceRange[1] < MAX_PRICE;
 
   // Filter sidebar content - rendered inline to avoid component creation during render
   const filtersContent = (
@@ -203,7 +215,7 @@ function SearchContent() {
         <Slider
           value={priceRange}
           onValueChange={setPriceRange}
-          max={1000}
+          max={MAX_PRICE}
           step={10}
           className="mb-4"
         />

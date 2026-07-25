@@ -84,7 +84,10 @@ import {
   EmptyState,
   DeleteConfirmation,
 } from "@/components/shared";
-import type { ProductListItemDto as Product } from "@/types";
+import type {
+  ProductListItemDto as Product,
+  ProductCondition,
+} from "@/types";
 import { FieldError } from "@/components/forms/field-error";
 
 const PAGE_SIZE = 15;
@@ -98,6 +101,7 @@ const FLAG_REASON_MAX = 500;
  * ProductListItemDto does not yet describe.
  */
 type ModeratedProduct = Product & {
+  viewCount?: number | null;
   flaggedAt?: string | null;
   flagReason?: string | null;
   description?: string | null;
@@ -106,13 +110,16 @@ type ModeratedProduct = Product & {
 
 const asModerated = (product: Product) => product as ModeratedProduct;
 
+// Values must be the ProductCondition enum the API stores. They used to be
+// lowercase — and included a "New" that does not exist — so the filter could
+// never match a single row.
 const conditionOptions = [
   { value: "all", label: "All Conditions" },
-  { value: "new", label: "New" },
-  { value: "like_new", label: "Like New" },
-  { value: "good", label: "Good" },
-  { value: "fair", label: "Fair" },
-  { value: "poor", label: "Poor" },
+  { value: "LIKE_NEW", label: "Like New" },
+  { value: "VERY_GOOD", label: "Very Good" },
+  { value: "GOOD", label: "Good" },
+  { value: "FAIR", label: "Fair" },
+  { value: "POOR", label: "Poor" },
 ];
 
 const sortOptions = [
@@ -152,10 +159,24 @@ export default function AdminProductsPage() {
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
 
+  // Every filter goes to the API. Filtering the fifteen rows already on screen
+  // made search and the category/condition selects look like they did nothing,
+  // and left the pagination total describing a different set than the table.
+  const [sortBy, sortOrder] = sort.split(":") as [
+    "createdAt" | "price" | "viewCount" | "title",
+    "asc" | "desc",
+  ];
+
   const { data, isLoading } = useAdminProducts({
     page,
     limit: PAGE_SIZE,
     includeInactive,
+    search: debouncedSearch || undefined,
+    categoryId: category !== "all" ? category : undefined,
+    condition:
+      condition !== "all" ? (condition as ProductCondition) : undefined,
+    sortBy,
+    sortOrder,
   });
 
   const toggleFeaturedMutation = useAdminToggleProductFeatured();
@@ -187,22 +208,8 @@ export default function AdminProductsPage() {
   const totalItems =
     (data as { meta?: { total?: number } })?.meta?.total || products.length;
 
-  // Filter products locally (if API doesn't support all filters)
-  const filteredProducts = products.filter((product: Product) => {
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      if (!product.title?.toLowerCase().includes(searchLower)) {
-        return false;
-      }
-    }
-    if (category !== "all" && product.category?.id !== category) {
-      return false;
-    }
-    if (condition !== "all" && product.condition !== condition) {
-      return false;
-    }
-    return true;
-  });
+  // The API has already applied search, category, condition and sort.
+  const filteredProducts = products;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -297,11 +304,20 @@ export default function AdminProductsPage() {
           <Input
             placeholder="Search products..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
+        <Select
+          value={category}
+          onValueChange={(v) => {
+            setCategory(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -314,7 +330,13 @@ export default function AdminProductsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={condition} onValueChange={setCondition}>
+        <Select
+          value={condition}
+          onValueChange={(v) => {
+            setCondition(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Condition" />
           </SelectTrigger>
@@ -326,7 +348,13 @@ export default function AdminProductsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={setSort}>
+        <Select
+          value={sort}
+          onValueChange={(v) => {
+            setSort(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
@@ -480,7 +508,9 @@ export default function AdminProductsPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">0</TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {asModerated(product).viewCount ?? 0}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

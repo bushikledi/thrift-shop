@@ -54,6 +54,10 @@ export class UsersService {
             verified: true,
           },
         },
+        // Drives the "Account Statistics" cards, which were hardcoded to 0.
+        _count: {
+          select: { orders: true, reviews: true, savedItems: true },
+        },
       },
     });
 

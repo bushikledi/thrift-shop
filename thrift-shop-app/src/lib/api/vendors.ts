@@ -11,6 +11,7 @@ import type {
   ReviewSummaryDto,
   ReviewListResponseDto,
   OrderResponseDto,
+  VendorListParams,
   PaginationParams,
   PaginationMetaDto,
 } from "@/types";
@@ -25,9 +26,7 @@ export const vendorsApi = {
   /**
    * Get all vendors
    */
-  list: (
-    params: PaginationParams & { verified?: boolean }
-  ): Promise<VendorDetailDto[]> =>
+  list: (params?: VendorListParams): Promise<VendorDetailDto[]> =>
     get<VendorDetailDto[]>("/vendors", { params }),
 
   /**

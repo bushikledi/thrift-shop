@@ -10,7 +10,11 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { UserRole, OrderStatus } from '../../../generated/prisma/client';
+import {
+  UserRole,
+  OrderStatus,
+  ProductCondition,
+} from '../../../generated/prisma/client';
 import { ToBoolean } from '../../../common/decorators';
 
 export class AdminUserQueryDto {
@@ -105,6 +109,98 @@ export class AdminUpdateVendorDto {
   @IsOptional()
   @IsBoolean()
   verified?: boolean;
+}
+
+export const ADMIN_PRODUCT_SORT_FIELDS = [
+  'createdAt',
+  'price',
+  'viewCount',
+  'title',
+] as const;
+export type AdminProductSortField = (typeof ADMIN_PRODUCT_SORT_FIELDS)[number];
+
+export class AdminProductQueryDto {
+  @ApiPropertyOptional({ description: 'Product title or brand' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional({ enum: ProductCondition })
+  @IsOptional()
+  @IsEnum(ProductCondition)
+  condition?: ProductCondition;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  includeInactive?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ADMIN_PRODUCT_SORT_FIELDS,
+    default: 'createdAt',
+  })
+  @IsOptional()
+  @IsIn(ADMIN_PRODUCT_SORT_FIELDS)
+  sortBy?: AdminProductSortField;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  limit?: number;
+}
+
+export class AdminReviewQueryDto {
+  @ApiPropertyOptional({ description: 'Review text, title, or reviewer name' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  rating?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  isVerified?: boolean;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  limit?: number;
 }
 
 export const ADMIN_ORDER_SORT_FIELDS = [

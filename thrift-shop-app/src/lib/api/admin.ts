@@ -15,6 +15,8 @@ import type {
   AdminUsersParams,
   AdminVendorsParams,
   AdminOrdersParams,
+  AdminProductsParams,
+  AdminReviewsParams,
   PaginationParams,
 } from "@/types";
 
@@ -135,7 +137,7 @@ export const adminApi = {
    * Get all products
    */
   getProducts: (
-    params: PaginationParams & { includeInactive: boolean }
+    params?: AdminProductsParams
   ): Promise<ProductListItemDto[]> =>
     get<ProductListItemDto[]>("/admin/products", { params }),
 
@@ -155,7 +157,9 @@ export const adminApi = {
   /**
    * Get all reviews
    */
-  getReviews: (params: PaginationParams): Promise<AdminReviewResponseDto[]> =>
+  getReviews: (
+    params?: AdminReviewsParams
+  ): Promise<AdminReviewResponseDto[]> =>
     get<AdminReviewResponseDto[]>("/admin/reviews", { params }),
 
   /**

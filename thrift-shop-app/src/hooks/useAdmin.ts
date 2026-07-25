@@ -17,6 +17,8 @@ import type {
   AdminUsersParams,
   AdminVendorsParams,
   AdminOrdersParams,
+  AdminProductsParams,
+  AdminReviewsParams,
   PaginationParams,
 } from "@/types";
 import { ApiError } from "@/lib/apiClient";
@@ -217,9 +219,7 @@ export function useAdminOrder(id: string, enabled = true) {
 /**
  * Get all products (admin)
  */
-export function useAdminProducts(
-  params: PaginationParams & { includeInactive: boolean }
-) {
+export function useAdminProducts(params?: AdminProductsParams) {
   return useQuery({
     queryKey: queryKeys.admin.products.list(
       params as unknown as Record<string, unknown>
@@ -274,7 +274,7 @@ export function useAdminToggleProductActive() {
 /**
  * Get all reviews (admin)
  */
-export function useAdminReviews(params: PaginationParams) {
+export function useAdminReviews(params?: AdminReviewsParams) {
   return useQuery({
     queryKey: queryKeys.admin.reviews.list(
       params as unknown as Record<string, unknown>

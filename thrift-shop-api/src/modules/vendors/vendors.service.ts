@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
-import { UpdateVendorDto, VendorPayoutDetails } from './dto';
+import { UpdateVendorDto, VendorPayoutDetails, VendorQueryDto } from './dto';
 import { OrderStatus, Prisma } from '../../generated/prisma/client';
 import { PAGINATION } from '../../common/constants';
 import { EncryptionService } from '../../common/utils';
@@ -16,7 +16,22 @@ export class VendorsService {
     private encryption: EncryptionService,
   ) {}
 
-  async findAll(page = 1, limit = 20, verified?: boolean) {
+  /**
+   * Public seller directory.
+   *
+   * Search and sort are applied here because the Sellers page offers both
+   * controls; before this they were decoration — the search box filtered
+   * nothing and the sort select was never read at all.
+   */
+  async findAll(query: VendorQueryDto = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      verified,
+      search,
+      sortBy = 'rating',
+      sortOrder = 'desc',
+    } = query;
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * safeLimit;
     const where: Prisma.VendorWhereInput = {};
@@ -24,6 +39,18 @@ export class VendorsService {
     if (verified !== undefined) {
       where.verified = verified;
     }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { displayName: { contains: search, mode: 'insensitive' } },
+        { bio: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const orderBy: Prisma.VendorOrderByWithRelationInput =
+      sortBy === 'products'
+        ? { products: { _count: sortOrder } }
+        : { [sortBy]: sortOrder };
 
     const [vendors, total] = await Promise.all([
       this.prisma.vendor.findMany({
@@ -42,9 +69,9 @@ export class VendorsService {
             select: { products: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
-        take: limit,
+        take: safeLimit,
       }),
       this.prisma.vendor.count({ where }),
     ]);
