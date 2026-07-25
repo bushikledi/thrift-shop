@@ -236,6 +236,20 @@ function createApiClient(): AxiosInstance {
         }
       }
 
+      // Maintenance mode. Without this the store just renders a page full of
+      // failed requests; send shoppers somewhere that explains why. Admin
+      // routes are excluded — the API keeps them reachable precisely so
+      // maintenance mode can be switched back off.
+      if (status === 503 && typeof window !== "undefined") {
+        const { pathname } = window.location;
+        if (
+          !pathname.startsWith("/maintenance") &&
+          !pathname.startsWith("/admin")
+        ) {
+          window.location.assign("/maintenance");
+        }
+      }
+
       return Promise.reject(ApiError.fromAxiosError(error));
     }
   );
