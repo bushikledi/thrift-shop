@@ -51,7 +51,14 @@ export const productsApi = {
   /**
    * Delete a product (vendor only)
    */
-  delete: (id: string): Promise<void> => del<void>(`/products/${id}`),
+  /**
+   * Deleting a product that already appears in an order archives it instead of
+   * removing it, so the order's line items keep pointing at something real.
+   * The server says which happened in `message`; callers must not assume the
+   * row disappeared.
+   */
+  delete: (id: string): Promise<{ message: string }> =>
+    del<{ message: string }>(`/products/${id}`),
 };
 
 export default productsApi;

@@ -102,17 +102,19 @@ export default function VendorProductsPage() {
   const deleteProductMutation = useDeleteProduct();
   const updateProductMutation = useUpdateProduct();
 
+  // The mutations own their toasts. This page used to fire a second one on
+  // top of the hook's, so every action produced two stacked notifications.
   const handleToggleArchive = async (product: ProductListItemDto) => {
     try {
       await updateProductMutation.mutateAsync({
         id: product.id,
         data: { isActive: !product.isActive },
+        successMessage: product.isActive
+          ? "Product archived"
+          : "Product restored",
       });
-      toast.success(product.isActive ? "Product archived" : "Product restored");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update product"
-      );
+    } catch {
+      // useUpdateProduct surfaces the error.
     }
   };
 
@@ -154,28 +156,41 @@ export default function VendorProductsPage() {
     if (!deleteProduct) return;
 
     try {
-      await deleteProductMutation.mutateAsync(deleteProduct.id);
-      toast.success("Product deleted");
+      // useDeleteProduct reports what the server actually did — a product with
+      // existing orders is archived rather than removed.
+      await deleteProductMutation.mutateAsync({ id: deleteProduct.id });
       setDeleteProduct(null);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete product"
-      );
+    } catch {
+      // useDeleteProduct surfaces the error.
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedProducts.length === 0) return;
 
-    try {
-      await Promise.all(
-        selectedProducts.map((id) => deleteProductMutation.mutateAsync(id))
-      );
-      toast.success(`${selectedProducts.length} products deleted`);
-      setSelectedProducts([]);
-    } catch {
-      toast.error("Failed to delete some products");
-    }
+    // Per-item toasts are suppressed and the outcome summarised once. Products
+    // that already appear in an order are archived rather than deleted, so
+    // report the two counts separately instead of claiming N deletions.
+    const results = await Promise.allSettled(
+      selectedProducts.map((id) =>
+        deleteProductMutation.mutateAsync({ id, silent: true })
+      )
+    );
+
+    const failed = results.filter((r) => r.status === "rejected").length;
+    const archived = results.filter(
+      (r) => r.status === "fulfilled" && /archived/i.test(r.value?.message ?? "")
+    ).length;
+    const deleted = results.length - failed - archived;
+
+    const parts: string[] = [];
+    if (deleted > 0) parts.push(`${deleted} deleted`);
+    if (archived > 0) parts.push(`${archived} archived (has orders)`);
+
+    if (parts.length > 0) toast.success(parts.join(", "));
+    if (failed > 0) toast.error(`${failed} could not be removed`);
+
+    setSelectedProducts([]);
   };
 
   return (

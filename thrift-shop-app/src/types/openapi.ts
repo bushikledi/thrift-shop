@@ -1820,7 +1820,10 @@ export interface components {
             payoutDetails?: components["schemas"]["PayoutDetailsDto"];
         };
         VendorDashboardStatsDto: {
+            /** @description All listings, including archived ones */
             totalProducts: number;
+            /** @description Listings currently visible to customers */
+            activeProducts: number;
             totalOrders: number;
             pendingOrders: number;
             totalRevenue: number;
@@ -2152,7 +2155,7 @@ export interface components {
              * @description New status for the order
              * @enum {string}
              */
-            status: "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            status: "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED" | "REFUNDED";
             trackingNumber?: string;
             vendorNotes?: string;
         };

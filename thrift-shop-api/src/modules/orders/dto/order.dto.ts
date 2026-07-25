@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsEnum,
   IsEmail,
+  IsIn,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -103,7 +104,13 @@ export class CreateOrderDto {
 }
 
 /**
- * Valid status transitions for order updates
+ * Statuses an order can be moved *to*.
+ *
+ * PENDING is excluded: it is the state an order is created in, never one it
+ * returns to. RETURNED and REFUNDED belong here — `OrdersService.updateStatus`
+ * accepts DELIVERED → RETURNED → REFUNDED, and leaving them off this list left
+ * the documented enum (and so the generated client types) narrower than what
+ * the endpoint actually does.
  */
 const VALID_UPDATE_STATUSES = [
   OrderStatus.CONFIRMED,
@@ -111,6 +118,8 @@ const VALID_UPDATE_STATUSES = [
   OrderStatus.SHIPPED,
   OrderStatus.DELIVERED,
   OrderStatus.CANCELLED,
+  OrderStatus.RETURNED,
+  OrderStatus.REFUNDED,
 ] as const;
 
 export class UpdateOrderStatusDto {
@@ -118,7 +127,9 @@ export class UpdateOrderStatusDto {
     enum: VALID_UPDATE_STATUSES,
     description: 'New status for the order',
   })
-  @IsEnum(OrderStatus, {
+  // Validate against the list itself. `@IsEnum(OrderStatus)` accepted every
+  // status including PENDING, so the message above was advisory only.
+  @IsIn(VALID_UPDATE_STATUSES, {
     message: `status must be one of: ${VALID_UPDATE_STATUSES.join(', ')}`,
   })
   status!: OrderStatus;

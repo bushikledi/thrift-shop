@@ -4,11 +4,12 @@
  */
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, type FieldErrors } from "react-hook-form";
+import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Save, Store, Mail, MapPin, Phone } from "lucide-react";
+import { Save, Store, Mail } from "lucide-react";
 import {
   useMyVendorProfile,
   useUpdateMyVendorProfile,
@@ -34,9 +35,15 @@ import {
 import { FieldError } from "@/components/forms/field-error";
 
 const storeSettingsSchema = z.object({
-  name: z.string().min(1, "Store name is required"),
+  // Matches @MinLength(3) on the API's UpdateVendorDto, so a too-short name
+  // is caught here rather than coming back as a 400.
+  name: z.string().min(3, "Store name must be at least 3 characters"),
   description: z.string().optional(),
-  email: z.string().email("Invalid email").optional(),
+  // An empty contact email is valid — the field is optional. `.email()` alone
+  // rejected "", which is what the form resets to when no contact email is
+  // stored, so saving the Store Info tab failed validation against a field on
+  // a *different*, unmounted tab and no request was ever sent.
+  email: z.union([z.literal(""), z.string().email("Invalid email")]).optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -64,9 +71,23 @@ interface VendorProfileFields {
   settings?: VendorSettings | null;
 }
 
+/** Which tab each field lives on, so an invalid field can be revealed. */
+const FIELD_TAB: Record<keyof StoreSettingsFormData, string> = {
+  name: "store",
+  description: "store",
+  email: "contact",
+  phone: "contact",
+  address: "contact",
+  city: "contact",
+  state: "contact",
+  postalCode: "contact",
+  country: "contact",
+};
+
 export default function VendorSettingsPage() {
   const { data: vendor, isLoading } = useMyVendorProfile();
   const updateProfile = useUpdateMyVendorProfile();
+  const [tab, setTab] = useState("store");
 
   const {
     register,
@@ -131,6 +152,22 @@ export default function VendorSettingsPage() {
     } as unknown as Parameters<typeof updateProfile.mutate>[0]);
   };
 
+  /**
+   * Inactive tabs are unmounted, so an error on one of their fields would
+   * block the save with nothing on screen to explain it. Reveal the tab and
+   * say so.
+   */
+  const onInvalid = (formErrors: FieldErrors<StoreSettingsFormData>) => {
+    const firstField = Object.keys(formErrors)[0] as
+      | keyof StoreSettingsFormData
+      | undefined;
+    if (!firstField) return;
+    setTab(FIELD_TAB[firstField]);
+    toast.error(
+      formErrors[firstField]?.message || "Please fix the highlighted field"
+    );
+  };
+
   const isSaving = updateProfile.isPending;
 
   return (
@@ -142,8 +179,8 @@ export default function VendorSettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue="store" className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="store">
               <Store className="mr-2 h-4 w-4" />

@@ -4,42 +4,20 @@
  */
 "use client";
 
-import { use, useState } from "react";
+import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Package, User, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import Image from "next/image";
+import { ArrowLeft, CreditCard, MapPin, Package, Truck, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { LoadingSkeleton } from "@/components/shared";
+import { OrderStatusSelect } from "@/components/vendor/order-status-select";
 import { useMyVendorOrder } from "@/hooks/useVendors";
-import { useUpdateOrderStatus } from "@/hooks/useOrders";
+import { orderStatusMeta } from "@/lib/order-status";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-// Statuses a vendor can transition an order to (matches UpdateOrderStatusDto).
-type VendorOrderStatus =
-  | "CONFIRMED"
-  | "PROCESSING"
-  | "SHIPPED"
-  | "DELIVERED"
-  | "CANCELLED";
-
-const STATUS_FLOW: VendorOrderStatus[] = [
-  "CONFIRMED",
-  "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
-  "CANCELLED",
-];
 
 // The generated OrderResponseDto omits a few relations the API actually
 // returns (buyer, guestInfo, items with product). Describe just what we read.
@@ -47,16 +25,30 @@ interface VendorOrderView {
   id: string;
   orderNumber: string;
   status: string;
+  paymentStatus?: string;
+  paymentMethod?: string | null;
+  shippingMethod?: string | null;
+  trackingNumber?: string | null;
+  subtotal?: number | string;
+  shippingAmount?: number | string;
+  discount?: number | string;
   total: number | string;
   createdAt?: string;
+  customerNotes?: string | null;
   guestInfo?: { name?: string; email?: string; phone?: string } | null;
   buyer?: { name?: string; email?: string; phone?: string } | null;
   shippingAddress?: Record<string, string>;
   items?: Array<{
     id: string;
+    title?: string | null;
     quantity: number;
     price: number | string;
-    product?: { name?: string };
+    conditionSnapshot?: string | null;
+    product?: {
+      slug?: string;
+      title?: string;
+      media?: Array<{ url: string }>;
+    } | null;
   }>;
 }
 
@@ -68,8 +60,6 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const { data: orderRaw, isLoading } = useMyVendorOrder(id);
   const order = orderRaw as unknown as VendorOrderView | undefined;
-  const updateStatus = useUpdateOrderStatus();
-  const [pendingStatus, setPendingStatus] = useState<string>("");
 
   if (isLoading) {
     return (
@@ -94,21 +84,9 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
 
   const customer = order.buyer ?? order.guestInfo ?? null;
   const address = order.shippingAddress;
-
-  const handleStatusChange = (status: string) => {
-    setPendingStatus(status);
-    updateStatus.mutate(
-      { id: order.id, data: { status: status as VendorOrderStatus } },
-      {
-        onSuccess: () => toast.success(`Order marked ${status.toLowerCase()}`),
-        onError: (err) =>
-          toast.error(
-            err instanceof Error ? err.message : "Failed to update status"
-          ),
-        onSettled: () => setPendingStatus(""),
-      }
-    );
-  };
+  const meta = orderStatusMeta(order.status);
+  const StatusIcon = meta.icon;
+  const discount = Number(order.discount ?? 0);
 
   return (
     <div className="space-y-6">
@@ -124,7 +102,10 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
             {order.createdAt ? formatDate(order.createdAt) : ""}
           </p>
         </div>
-        <Badge className="ml-auto">{order.status}</Badge>
+        <Badge className={`ml-auto ${meta.className}`}>
+          <StatusIcon className="mr-1 h-3 w-3" />
+          {meta.label}
+        </Badge>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -135,60 +116,94 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
               <CardTitle>Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.items?.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-4"
-                >
-                  <div>
+              {order.items?.map((item) => {
+                // `title` is the snapshot taken at checkout; the live product
+                // may since have been renamed or archived.
+                const title = item.title || item.product?.title || "Product";
+                const image = item.product?.media?.[0]?.url;
+                return (
+                  <div key={item.id} className="flex items-center gap-4">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                      {image && (
+                        <Image
+                          src={image}
+                          alt=""
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {item.product?.slug ? (
+                        <Link
+                          href={`/products/${item.product.slug}`}
+                          className="font-medium hover:text-primary"
+                        >
+                          {title}
+                        </Link>
+                      ) : (
+                        <p className="font-medium">{title}</p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {formatCurrency(item.price)} × {item.quantity}
+                        {item.conditionSnapshot
+                          ? ` · ${item.conditionSnapshot.replace(/_/g, " ").toLowerCase()}`
+                          : ""}
+                      </p>
+                    </div>
                     <p className="font-medium">
-                      {item.product?.name || "Product"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Qty: {item.quantity}
+                      {formatCurrency(item.quantity * Number(item.price))}
                     </p>
                   </div>
-                  <p className="font-medium">
-                    {formatCurrency(item.quantity * Number(item.price))}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
+
               <Separator />
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span>{formatCurrency(order.total)}</span>
+
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(order.subtotal ?? 0)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Shipping</span>
+                  <span>{formatCurrency(order.shippingAmount ?? 0)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Discount</span>
+                    <span>-{formatCurrency(discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-1 text-base font-semibold">
+                  <span>Total</span>
+                  <span>{formatCurrency(order.total)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {order.customerNotes && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer notes</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {order.customerNotes}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
           {/* Update status */}
           <Card>
             <CardHeader>
-              <CardTitle>Update status</CardTitle>
+              <CardTitle>Fulfilment</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select
-                value=""
-                onValueChange={handleStatusChange}
-                disabled={updateStatus.isPending}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      pendingStatus ? "Updating…" : "Change status…"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_FLOW.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s.charAt(0) + s.slice(1).toLowerCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <OrderStatusSelect orderId={order.id} status={order.status} />
             </CardContent>
           </Card>
 
@@ -200,13 +215,33 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm">
-              <p className="font-medium">{customer?.name || "Guest"}</p>
+              <p className="font-medium">
+                {customer?.name || address?.name || "Guest"}
+              </p>
               {customer?.email && (
                 <p className="text-muted-foreground">{customer.email}</p>
               )}
               {customer?.phone && (
                 <p className="text-muted-foreground">{customer.phone}</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Payment */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" /> Payment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                Status:{" "}
+                <span className="font-medium text-foreground">
+                  {order.paymentStatus ?? "PENDING"}
+                </span>
+              </p>
+              {order.paymentMethod && <p>Method: {order.paymentMethod}</p>}
             </CardContent>
           </Card>
 
@@ -218,13 +253,20 @@ export default function VendorOrderDetailPage({ params }: PageProps) {
                   <MapPin className="h-4 w-4" /> Shipping
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
                 <p>{address.street}</p>
                 <p>
                   {address.city}
                   {address.state ? `, ${address.state}` : ""} {address.zip}
                 </p>
                 <p>{address.country}</p>
+                {(order.shippingMethod || order.trackingNumber) && (
+                  <p className="flex items-center gap-1 pt-2">
+                    <Truck className="h-3 w-3" />
+                    {order.shippingMethod || "Shipping"}
+                    {order.trackingNumber ? ` · ${order.trackingNumber}` : ""}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

@@ -98,3 +98,86 @@ describe('ProductsService.findAll category filtering', () => {
     expect(whereArg().categoryId).toBeUndefined();
   });
 });
+
+/**
+ * A product's slug is its public URL. The edit form always submits the title,
+ * so keying slug regeneration off "was a title sent?" rebuilt it on every
+ * save — silently moving the product to a new URL and 404ing the link the
+ * vendor's own product table was still showing.
+ */
+describe('ProductsService.update slug stability', () => {
+  let service: ProductsService;
+  let repoUpdate: jest.Mock;
+
+  const existing = {
+    id: 'product-1',
+    vendorId: 'vendor-1',
+    title: 'Vintage Denim Jacket',
+    slug: 'vintage-denim-jacket-abc123',
+  };
+
+  const prisma = {
+    product: { findUnique: jest.fn() },
+  };
+
+  beforeEach(async () => {
+    repoUpdate = jest.fn().mockResolvedValue(existing);
+    prisma.product.findUnique.mockReset().mockResolvedValue(existing);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ProductsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: ProductsRepository,
+          useValue: {
+            update: repoUpdate,
+            findUnique: jest.fn().mockResolvedValue(null),
+          },
+        },
+        { provide: ViewCountService, useValue: { increment: jest.fn() } },
+        {
+          provide: CACHE_MANAGER,
+          useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ProductsService>(ProductsService);
+  });
+
+  /** The update payload the service handed to the repository. */
+  const updateData = (): Record<string, unknown> => {
+    const [, data] = repoUpdate.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    return data;
+  };
+
+  it('keeps the slug when the submitted title is unchanged', async () => {
+    await service.update('product-1', 'vendor-1', {
+      title: existing.title,
+      price: 42,
+    });
+
+    expect(updateData().slug).toBeUndefined();
+  });
+
+  it('keeps the slug when no title is submitted at all', async () => {
+    await service.update('product-1', 'vendor-1', { isActive: false });
+
+    expect(updateData().slug).toBeUndefined();
+  });
+
+  it('regenerates the slug when the title actually changes', async () => {
+    await service.update('product-1', 'vendor-1', {
+      title: 'Vintage Denim Jacket (Repaired)',
+    });
+
+    expect(updateData().slug).toEqual(
+      expect.stringContaining('vintage-denim-jacket-repaired'),
+    );
+    expect(updateData().slug).not.toBe(existing.slug);
+  });
+});

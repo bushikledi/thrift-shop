@@ -167,8 +167,10 @@ export function useUpdateOrderStatus() {
       queryClient.setQueryData(queryKeys.orders.detail(order.id), order);
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.vendors.me.orders(),
+        queryKey: queryKeys.vendors.me.orderLists(),
       });
+      // Revenue and the pending-order count both move with status.
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.me.stats() });
       toast.success(`Order status updated to ${order.status}`);
     },
   });

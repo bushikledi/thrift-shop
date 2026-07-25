@@ -318,9 +318,12 @@ export class VendorsService {
   }
 
   async getStats(vendorId: string) {
-    const [totalProducts, totalOrders, pendingOrders, revenue] =
+    const [totalProducts, activeProducts, totalOrders, pendingOrders, revenue] =
       await Promise.all([
         this.prisma.product.count({ where: { vendorId } }),
+        // Reported separately because the dashboard labels this figure
+        // "Active products" — the total includes archived listings.
+        this.prisma.product.count({ where: { vendorId, isActive: true } }),
         this.prisma.order.count({ where: { vendorId } }),
         this.prisma.order.count({
           where: {
@@ -336,6 +339,7 @@ export class VendorsService {
 
     return {
       totalProducts,
+      activeProducts,
       totalOrders,
       pendingOrders,
       totalRevenue: revenue._sum.total || 0,
@@ -380,11 +384,20 @@ export class VendorsService {
    * series is continuous.
    */
   async getAnalytics(vendorId: string, days = 30) {
+    // Clamp: `days` drives a per-day loop below, so an unbounded value from
+    // the query string would build an arbitrarily large response.
+    const windowDays = Math.min(Math.max(Math.trunc(days) || 30, 1), 365);
+
     const since = new Date();
-    since.setUTCDate(since.getUTCDate() - (days - 1));
+    since.setUTCDate(since.getUTCDate() - (windowDays - 1));
     since.setUTCHours(0, 0, 0, 0);
 
-    const [rows, topProducts] = await Promise.all([
+    // The equal-length window immediately before this one, so the dashboard
+    // can show a real period-over-period change instead of a placeholder.
+    const previousSince = new Date(since);
+    previousSince.setUTCDate(since.getUTCDate() - windowDays);
+
+    const [rows, topProducts, previous] = await Promise.all([
       this.prisma.$queryRaw<
         Array<{ day: Date; revenue: number | null; orders: bigint }>
       >`
@@ -409,6 +422,14 @@ export class VendorsService {
         ORDER BY revenue DESC NULLS LAST
         LIMIT 8
       `,
+      this.prisma.$queryRaw<Array<{ revenue: number | null; orders: bigint }>>`
+        SELECT SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END) AS revenue,
+               COUNT(*) AS orders
+        FROM orders
+        WHERE vendor_id = ${vendorId}
+          AND created_at >= ${previousSince}
+          AND created_at < ${since}
+      `,
     ]);
 
     const byDay = new Map<string, { revenue: number; orders: number }>();
@@ -420,7 +441,7 @@ export class VendorsService {
     }
 
     const series: Array<{ date: string; revenue: number; orders: number }> = [];
-    for (let offset = 0; offset < days; offset++) {
+    for (let offset = 0; offset < windowDays; offset++) {
       const date = new Date(since);
       date.setUTCDate(since.getUTCDate() + offset);
       const key = date.toISOString().slice(0, 10);
@@ -432,9 +453,22 @@ export class VendorsService {
       });
     }
 
+    const totals = series.reduce(
+      (acc, day) => ({
+        revenue: acc.revenue + day.revenue,
+        orders: acc.orders + day.orders,
+      }),
+      { revenue: 0, orders: 0 },
+    );
+
     return {
-      days,
+      days: windowDays,
       series,
+      totals,
+      previous: {
+        revenue: Number(previous[0]?.revenue ?? 0),
+        orders: Number(previous[0]?.orders ?? 0),
+      },
       topProducts: topProducts.map((row) => ({
         name: row.name,
         revenue: Number(row.revenue ?? 0),

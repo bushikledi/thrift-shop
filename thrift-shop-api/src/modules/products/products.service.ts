@@ -263,8 +263,14 @@ export class ProductsService {
       throw new ForbiddenException('You can only update your own products');
     }
 
-    // Generate new slug if title changed
-    const slug = dto.title ? await this.generateSlug(dto.title) : undefined;
+    // Generate a new slug only when the title actually changed. Keying off
+    // `dto.title` alone regenerated it on every save — the edit form always
+    // submits the title — so each save silently moved the product to a new
+    // URL and 404'd every link anyone was already holding.
+    const titleChanged = Boolean(dto.title) && dto.title !== product.title;
+    const slug = titleChanged
+      ? await this.generateSlug(dto.title as string)
+      : undefined;
 
     // Extract fields that need special handling
     const { metadata, measurements, categoryId, ...restDto } = dto;
