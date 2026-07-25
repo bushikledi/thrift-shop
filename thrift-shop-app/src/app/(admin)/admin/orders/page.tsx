@@ -19,6 +19,10 @@ import {
   Clock,
   RefreshCw,
   Download,
+  User,
+  Mail,
+  Phone,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,7 +60,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useAdminOrders } from "@/hooks/useAdmin";
+import { useAdminOrders, useAdminStats } from "@/hooks/useAdmin";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Pagination, TableSkeleton, EmptyState } from "@/components/shared";
 import type {
   OrderResponseDto as Order,
@@ -121,14 +126,26 @@ export default function AdminOrdersPage() {
     parseInt(searchParams.get("page") || "1", 10)
   );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [customerOrder, setCustomerOrder] = useState<Order | null>(null);
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  // The sort control is "field:direction"; the API takes them separately.
+  const [sortBy, sortOrder] = sort.split(":") as [
+    "createdAt" | "total" | "status",
+    "asc" | "desc",
+  ];
 
   const { data, isLoading } = useAdminOrders({
     page,
     limit: PAGE_SIZE,
     status:
       status !== "all" ? (status.toUpperCase() as OrderStatusType) : undefined,
-    // sortBy and sortOrder are not supported by AdminOrdersParams
+    search: debouncedSearch || undefined,
+    sortBy,
+    sortOrder,
   });
+  const { data: adminStats } = useAdminStats();
 
   const orders = Array.isArray(data)
     ? data
@@ -138,15 +155,18 @@ export default function AdminOrdersPage() {
   const totalItems =
     (data as { meta?: { total?: number } })?.meta?.total || orders.length;
 
-  // Calculate stats
+  // Platform-wide counts from /admin/stats. Counting the `orders` array only
+  // ever described the current page, so "Total" was really the page size.
+  const platformStats = adminStats as
+    | { totalOrders?: number; ordersByStatus?: Record<string, number> }
+    | undefined;
+  const byStatus = platformStats?.ordersByStatus ?? {};
   const stats = {
-    total: orders.length,
-    pending: orders.filter((o) => o.status === "PENDING").length,
-    processing: orders.filter(
-      (o) => o.status === "CONFIRMED" || o.status === "PROCESSING"
-    ).length,
-    shipped: orders.filter((o) => o.status === "SHIPPED").length,
-    delivered: orders.filter((o) => o.status === "DELIVERED").length,
+    total: platformStats?.totalOrders ?? totalItems,
+    pending: byStatus.PENDING ?? 0,
+    processing: (byStatus.CONFIRMED ?? 0) + (byStatus.PROCESSING ?? 0),
+    shipped: byStatus.SHIPPED ?? 0,
+    delivered: byStatus.DELIVERED ?? 0,
   };
 
   const handleViewOrder = (order: Order) => {
@@ -270,11 +290,20 @@ export default function AdminOrdersPage() {
           <Input
             placeholder="Search by order ID or customer..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
-        <Select value={status} onValueChange={setStatus}>
+        <Select
+          value={status}
+          onValueChange={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -286,7 +315,13 @@ export default function AdminOrdersPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={setSort}>
+        <Select
+          value={sort}
+          onValueChange={(v) => {
+            setSort(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
@@ -387,14 +422,11 @@ export default function AdminOrdersPage() {
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/orders/${order.id}`}
-                                target="_blank"
-                              >
-                                <Package className="mr-2 h-4 w-4" />
-                                Customer View
-                              </Link>
+                            <DropdownMenuItem
+                              onClick={() => setCustomerOrder(order)}
+                            >
+                              <User className="mr-2 h-4 w-4" />
+                              View Customer
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -423,8 +455,128 @@ export default function AdminOrdersPage() {
         </>
       )}
 
+      {/* Customer Drawer.
+          Replaces a link to /orders/[id], which is a shopper-only route — an
+          admin following it was bounced straight back to the dashboard. */}
+      <Sheet
+        open={!!customerOrder}
+        onOpenChange={(open) => {
+          if (!open) setCustomerOrder(null);
+        }}
+      >
+        <SheetContent className="flex h-full w-full flex-col overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Customer</SheetTitle>
+            <SheetDescription>
+              Who placed order #
+              {customerOrder?.orderNumber || customerOrder?.id?.slice(0, 8)}
+            </SheetDescription>
+          </SheetHeader>
+
+          {customerOrder && (
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="text-xl">
+                    {customerOrder.customer?.name?.[0] || "G"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <h3 className="truncate text-lg font-semibold">
+                    {customerOrder.customer?.name || "Guest checkout"}
+                  </h3>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {customerOrder.customer?.email || "No account"}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3 text-sm">
+                <h4 className="font-medium">Contact</h4>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="truncate">
+                    {customerOrder.customer?.email || "Not provided"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="h-4 w-4 shrink-0" />
+                  <span>
+                    {customerOrder.shippingAddress?.phone || "Not provided"}
+                  </span>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2 text-sm">
+                <h4 className="flex items-center gap-2 font-medium">
+                  <MapPin className="h-4 w-4" />
+                  Shipping address
+                </h4>
+                {customerOrder.shippingAddress ? (
+                  <div className="text-muted-foreground">
+                    <p>{customerOrder.shippingAddress.fullName}</p>
+                    <p>{customerOrder.shippingAddress.address}</p>
+                    <p>
+                      {customerOrder.shippingAddress.city},{" "}
+                      {customerOrder.shippingAddress.state}{" "}
+                      {customerOrder.shippingAddress.postalCode}
+                    </p>
+                    <p>{customerOrder.shippingAddress.country}</p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    No shipping address recorded
+                  </p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2 text-sm">
+                <h4 className="font-medium">This order</h4>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Placed</span>
+                  <span>
+                    {customerOrder.createdAt
+                      ? format(new Date(customerOrder.createdAt), "PP")
+                      : "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Items</span>
+                  <span>{customerOrder.items?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-medium">
+                    ${Number(customerOrder.total || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {customerOrder.customer?.id && (
+                <Button variant="outline" className="w-full" asChild>
+                  <Link
+                    href={`/admin/users?q=${encodeURIComponent(
+                      customerOrder.customer.email || ""
+                    )}`}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Open in Users
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Order Detail Sheet */}
-      <Sheet open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+      <Sheet open={!!selectedOrder} onOpenChange={(open) => { if (!open) setSelectedOrder(null); }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>

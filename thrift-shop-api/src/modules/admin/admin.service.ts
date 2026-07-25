@@ -38,6 +38,7 @@ export class AdminService {
       pendingVendorVerifications,
       verifiedVendors,
       vendorRating,
+      orderStatusCounts,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.vendor.count(),
@@ -61,7 +62,19 @@ export class AdminService {
       }),
       this.prisma.vendor.count({ where: { verified: true } }),
       this.prisma.vendor.aggregate({ _avg: { rating: true } }),
+      // Platform-wide order counts per status. The admin orders page used to
+      // derive these from the page it happened to be showing, so "Total" was
+      // really "rows on screen".
+      this.prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
     ]);
+
+    const ordersByStatus = Object.fromEntries(
+      Object.values(OrderStatus).map((status) => [
+        status,
+        orderStatusCounts.find((row) => row.status === status)?._count._all ??
+          0,
+      ]),
+    ) as Record<OrderStatus, number>;
 
     return {
       totalUsers,
@@ -73,6 +86,7 @@ export class AdminService {
       verifiedUsers,
       totalProducts,
       totalOrders,
+      ordersByStatus,
       totalRevenue: revenue._sum.total || 0,
       newUsersThisMonth,
       newOrdersThisMonth,
@@ -329,7 +343,16 @@ export class AdminService {
 
   // Order management
   async getOrders(query: AdminOrderQueryDto) {
-    const { status, vendorId, buyerId, page = 1, limit = 20 } = query;
+    const {
+      status,
+      vendorId,
+      buyerId,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 20,
+    } = query;
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * safeLimit;
 
@@ -338,6 +361,13 @@ export class AdminService {
     if (status) where.status = status;
     if (vendorId) where.vendorId = vendorId;
     if (buyerId) where.buyerId = buyerId;
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { buyer: { name: { contains: search, mode: 'insensitive' } } },
+        { buyer: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
@@ -351,7 +381,9 @@ export class AdminService {
           },
           items: true,
         },
-        orderBy: { createdAt: 'desc' },
+        // The admin list offers a sort control; honouring it here is what makes
+        // that control do anything.
+        orderBy: { [sortBy]: sortOrder },
         skip,
         take: safeLimit,
       }),

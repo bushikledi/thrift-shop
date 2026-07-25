@@ -1,14 +1,47 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
+import { invalidateCachePattern } from '../../common/utils';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
+
+  /**
+   * Drop the cached category responses.
+   *
+   * GET /categories and GET /categories/:slug are cached for five minutes by
+   * CacheInterceptor. Without this, a create/update/delete returned 200 while
+   * the admin list kept serving the old tree — the change looked like it had
+   * silently done nothing.
+   *
+   * CacheInterceptor keys entries by request URL, so the list variants are
+   * deleted by name. Slug entries are handled by the caller passing the slugs
+   * it touched; the pattern sweep only helps when a Redis store is configured,
+   * so it cannot be relied on alone.
+   */
+  private async invalidateCategoryCache(slugs: string[] = []): Promise<void> {
+    const prefix = '/api/v1/categories';
+    const keys = [
+      prefix,
+      `${prefix}?includeInactive=true`,
+      `${prefix}?includeInactive=false`,
+      ...slugs.map((slug) => `${prefix}/${slug}`),
+    ];
+
+    await Promise.all(keys.map((key) => this.cacheManager.del(key)));
+    await invalidateCachePattern(this.cacheManager, `${prefix}*`);
+  }
 
   async findAll(includeInactive = false) {
     const where = includeInactive ? {} : { isActive: true };
@@ -92,12 +125,15 @@ export class CategoriesService {
       }
     }
 
-    return this.prisma.category.create({
+    const created = await this.prisma.category.create({
       data: dto,
       include: {
         parent: true,
       },
     });
+
+    await this.invalidateCategoryCache([created.slug]);
+    return created;
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
@@ -135,7 +171,7 @@ export class CategoriesService {
       }
     }
 
-    return this.prisma.category.update({
+    const updated = await this.prisma.category.update({
       where: { id },
       data: dto,
       include: {
@@ -143,6 +179,10 @@ export class CategoriesService {
         children: true,
       },
     });
+
+    // Both slugs: the old entry must go even when the slug changed.
+    await this.invalidateCategoryCache([category.slug, updated.slug]);
+    return updated;
   }
 
   async delete(id: string) {
@@ -157,14 +197,16 @@ export class CategoriesService {
     // Collect the category and every descendant, grouped by depth, so we can
     // delete leaves first and never violate the parent/child foreign key.
     const levels: string[][] = [[id]];
+    const slugs: string[] = [category.slug];
     let frontier = [id];
     while (frontier.length > 0) {
       const children = await this.prisma.category.findMany({
         where: { parentId: { in: frontier } },
-        select: { id: true },
+        select: { id: true, slug: true },
       });
       const ids = children.map((c) => c.id);
       if (ids.length === 0) break;
+      slugs.push(...children.map((c) => c.slug));
       levels.push(ids);
       frontier = ids;
     }
@@ -182,6 +224,8 @@ export class CategoriesService {
         await tx.category.deleteMany({ where: { id: { in: levels[i] } } });
       }
     });
+
+    await this.invalidateCategoryCache(slugs);
 
     const subCount = allIds.length - 1;
     return {

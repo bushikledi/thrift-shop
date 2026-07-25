@@ -474,12 +474,10 @@ export default function AdminUsersPage() {
                               onClick={() =>
                                 setRoleChangeUser({
                                   user,
-                                  newRole:
-                                    user.role === "ADMIN"
-                                      ? "CUSTOMER"
-                                      : user.role === "VENDOR"
-                                      ? "CUSTOMER"
-                                      : "VENDOR",
+                                  // Open on the role the user actually has;
+                                  // guessing a "next" role made the dialog
+                                  // show something they never chose.
+                                  newRole: user.role as UserRole,
                                 })
                               }
                             >
@@ -522,7 +520,7 @@ export default function AdminUsersPage() {
       )}
 
       {/* User Details Sheet */}
-      <Sheet open={!!viewUser} onOpenChange={() => setViewUser(null)}>
+      <Sheet open={!!viewUser} onOpenChange={(open) => { if (!open) setViewUser(null); }}>
         <SheetContent className="sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>User Details</SheetTitle>
@@ -645,12 +643,7 @@ export default function AdminUsersPage() {
                     setViewUser(null);
                     setRoleChangeUser({
                       user: viewUser,
-                      newRole:
-                        viewUser.role === "ADMIN"
-                          ? "CUSTOMER"
-                          : viewUser.role === "VENDOR"
-                          ? "CUSTOMER"
-                          : "VENDOR",
+                      newRole: viewUser.role as UserRole,
                     });
                   }}
                 >
@@ -677,7 +670,11 @@ export default function AdminUsersPage() {
       {/* Role Change Dialog */}
       <Dialog
         open={!!roleChangeUser}
-        onOpenChange={() => setRoleChangeUser(null)}
+        // Respect the flag Radix passes. Discarding it closed the dialog on
+        // events that only meant "the select inside me opened".
+        onOpenChange={(open) => {
+          if (!open) setRoleChangeUser(null);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -727,7 +724,10 @@ export default function AdminUsersPage() {
             </Button>
             <Button
               onClick={handleRoleChange}
-              disabled={updateUserMutation.isPending}
+              disabled={
+                updateUserMutation.isPending ||
+                roleChangeUser?.newRole === roleChangeUser?.user.role
+              }
             >
               {updateUserMutation.isPending ? "Updating..." : "Update Role"}
             </Button>
@@ -736,7 +736,7 @@ export default function AdminUsersPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
+      <Dialog open={!!deleteUser} onOpenChange={(open) => { if (!open) setDeleteUser(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>

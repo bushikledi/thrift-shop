@@ -56,6 +56,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -77,8 +85,26 @@ import {
   DeleteConfirmation,
 } from "@/components/shared";
 import type { ProductListItemDto as Product } from "@/types";
+import { FieldError } from "@/components/forms/field-error";
 
 const PAGE_SIZE = 15;
+
+// Mirrors FlagProductDto on the API (@MinLength(3) / @MaxLength(500)).
+const FLAG_REASON_MIN = 3;
+const FLAG_REASON_MAX = 500;
+
+/**
+ * Moderation fields the admin product list returns but the generated
+ * ProductListItemDto does not yet describe.
+ */
+type ModeratedProduct = Product & {
+  flaggedAt?: string | null;
+  flagReason?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+};
+
+const asModerated = (product: Product) => product as ModeratedProduct;
 
 const conditionOptions = [
   { value: "all", label: "All Conditions" },
@@ -118,6 +144,8 @@ export default function AdminProductsPage() {
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
   const [flagProduct, setFlagProduct] = useState<Product | null>(null);
   const [flagReason, setFlagReason] = useState("");
+  const [viewProduct, setViewProduct] = useState<Product | null>(null);
+  const [flagAttempted, setFlagAttempted] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -135,6 +163,16 @@ export default function AdminProductsPage() {
   const flagProductMutation = useAdminFlagProduct();
   const unflagProductMutation = useAdminUnflagProduct();
   const deleteProductMutation = useAdminDeleteProduct();
+
+  const trimmedFlagReason = flagReason.trim();
+  const flagReasonValid =
+    trimmedFlagReason.length >= FLAG_REASON_MIN &&
+    trimmedFlagReason.length <= FLAG_REASON_MAX;
+  // Deliberately not driven by blur: closing the dropdown that opened this
+  // dialog restores focus to its trigger, which blurred the textarea and
+  // flagged an untouched field as invalid the moment the dialog appeared.
+  const showFlagReasonError =
+    !flagReasonValid && (flagAttempted || trimmedFlagReason.length > 0);
 
   const products = Array.isArray(data)
     ? data
@@ -199,7 +237,10 @@ export default function AdminProductsPage() {
   };
 
   const handleFlagProduct = async () => {
-    if (!flagProduct || !flagReason.trim()) return;
+    if (!flagProduct || !flagReasonValid) {
+      setFlagAttempted(true);
+      return;
+    }
 
     try {
       await flagProductMutation.mutateAsync({
@@ -208,6 +249,7 @@ export default function AdminProductsPage() {
       });
       setFlagProduct(null);
       setFlagReason("");
+      setFlagAttempted(false);
     } catch {
       // The mutation surfaces the error; keep the dialog open so the admin
       // can retry without retyping the reason.
@@ -419,11 +461,24 @@ export default function AdminProductsPage() {
                       ${Number(product.price || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={product.isActive ? "default" : "secondary"}
-                      >
-                        {product.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                      {/* Flagging deactivates the listing, so a flagged
+                          product used to read as a plain "Inactive" with no
+                          hint that a moderator had pulled it. */}
+                      {asModerated(product).flaggedAt ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 border-destructive text-destructive"
+                        >
+                          <Flag className="h-3 w-3" />
+                          Flagged
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={product.isActive ? "default" : "secondary"}
+                        >
+                          {product.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">0</TableCell>
                     <TableCell>
@@ -434,15 +489,11 @@ export default function AdminProductsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <a
-                              href={`/products/${product.slug || product.id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Product
-                            </a>
+                          <DropdownMenuItem
+                            onClick={() => setViewProduct(product)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -487,7 +538,11 @@ export default function AdminProductsPage() {
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
-                              onClick={() => setFlagProduct(product)}
+                              onClick={() => {
+                              setFlagReason("");
+                              setFlagAttempted(false);
+                              setFlagProduct(product);
+                            }}
                             >
                               <Flag className="mr-2 h-4 w-4" />
                               Flag for Review
@@ -529,7 +584,7 @@ export default function AdminProductsPage() {
       )}
 
       {/* Flag Product Dialog */}
-      <Dialog open={!!flagProduct} onOpenChange={() => setFlagProduct(null)}>
+      <Dialog open={!!flagProduct} onOpenChange={(open) => { if (!open) setFlagProduct(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Flag Product for Review</DialogTitle>
@@ -538,7 +593,7 @@ export default function AdminProductsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="flag-reason">Reason for Flagging</Label>
               <Textarea
                 id="flag-reason"
@@ -546,14 +601,42 @@ export default function AdminProductsPage() {
                 value={flagReason}
                 onChange={(e) => setFlagReason(e.target.value)}
                 rows={4}
+                maxLength={FLAG_REASON_MAX}
+                aria-invalid={showFlagReasonError}
               />
+              <div className="flex items-start justify-between gap-4">
+                {/* The server enforces 3–500 characters. Mirroring it here is
+                    what turns a silent 400 into something the admin can act
+                    on before submitting. */}
+                <FieldError
+                  error={
+                    showFlagReasonError
+                      ? {
+                          message: `Give a reason of at least ${FLAG_REASON_MIN} characters so other admins know why.`,
+                        }
+                      : undefined
+                  }
+                />
+                <span
+                  className={cn(
+                    "ml-auto shrink-0 text-xs tabular-nums text-muted-foreground",
+                    flagReason.length >= FLAG_REASON_MAX && "text-destructive"
+                  )}
+                >
+                  {flagReason.length}/{FLAG_REASON_MAX}
+                </span>
+              </div>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Flagging hides the listing from the storefront right away. It
+              stays hidden until an admin clears the flag, which restores it.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFlagProduct(null)}>
               Cancel
             </Button>
-            <Button onClick={handleFlagProduct} disabled={!flagReason.trim()}>
+            <Button onClick={handleFlagProduct} disabled={!flagReasonValid}>
               <Flag className="mr-2 h-4 w-4" />
               Flag Product
             </Button>
@@ -561,10 +644,230 @@ export default function AdminProductsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Product Details Drawer.
+          Deliberately not a link to /products/[slug]: the storefront page puts
+          "Add to cart" and wishlist actions in front of a moderator, which is
+          not what "view" should mean here. */}
+      <Sheet
+        open={!!viewProduct}
+        onOpenChange={(open) => {
+          if (!open) setViewProduct(null);
+        }}
+      >
+        <SheetContent className="flex h-full flex-col overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Product Details</SheetTitle>
+            <SheetDescription>
+              Review this listing without leaving the admin panel
+            </SheetDescription>
+          </SheetHeader>
+
+          {viewProduct && (
+            <div className="mt-6 space-y-6">
+              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+                {viewProduct.media?.[0]?.url ? (
+                  <Image
+                    src={viewProduct.media[0].url}
+                    alt={viewProduct.title}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Package className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+
+              {viewProduct.media && viewProduct.media.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto">
+                  {viewProduct.media.slice(1, 6).map((m) => (
+                    <div
+                      key={m.id}
+                      className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted"
+                    >
+                      <Image
+                        src={m.url}
+                        alt=""
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-xl font-semibold">{viewProduct.title}</h3>
+                <p className="mt-1 text-2xl font-bold">
+                  ${Number(viewProduct.price || 0).toFixed(2)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {asModerated(viewProduct).flaggedAt ? (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-destructive text-destructive"
+                    >
+                      <Flag className="h-3 w-3" />
+                      Flagged
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant={viewProduct.isActive ? "default" : "secondary"}
+                    >
+                      {viewProduct.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  )}
+                  {viewProduct.isFeatured && (
+                    <Badge
+                      variant="secondary"
+                      className="gap-1 bg-yellow-100 text-yellow-800"
+                    >
+                      <Star className="h-3 w-3" />
+                      Featured
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="capitalize">
+                    {viewProduct.condition?.replace("_", " ")}
+                  </Badge>
+                </div>
+              </div>
+
+              {asModerated(viewProduct).flaggedAt && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+                  <p className="flex items-center gap-2 text-sm font-medium text-destructive">
+                    <Flag className="h-4 w-4" />
+                    Flagged for review
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {asModerated(viewProduct).flagReason ||
+                      "No reason recorded."}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Hidden from the storefront since{" "}
+                    {new Date(
+                      asModerated(viewProduct).flaggedAt as string
+                    ).toLocaleString()}
+                    . Clearing the flag makes it visible again.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      unflagProductMutation.mutate(viewProduct.id);
+                      setViewProduct(null);
+                    }}
+                  >
+                    <Flag className="mr-2 h-4 w-4" />
+                    Clear Flag &amp; Restore
+                  </Button>
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="grid gap-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Vendor</span>
+                  <Link
+                    href={`/admin/vendors?id=${viewProduct.vendor?.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {viewProduct.vendor?.displayName || "Unknown"}
+                  </Link>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Category</span>
+                  <span>{viewProduct.category?.name || "Uncategorized"}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">In stock</span>
+                  <span>{asModerated(viewProduct).quantity ?? 0}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Slug</span>
+                  <span className="truncate font-mono text-xs">
+                    {viewProduct.slug}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Product ID</span>
+                  <span className="truncate font-mono text-xs">
+                    {viewProduct.id}
+                  </span>
+                </div>
+              </div>
+
+              {asModerated(viewProduct).description && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Description</h4>
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">
+                      {asModerated(viewProduct).description}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleToggleFeatured(viewProduct)}
+                >
+                  {viewProduct.isFeatured ? (
+                    <>
+                      <StarOff className="mr-2 h-4 w-4" />
+                      Remove Featured
+                    </>
+                  ) : (
+                    <>
+                      <Star className="mr-2 h-4 w-4" />
+                      Mark Featured
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleToggleActive(viewProduct)}
+                >
+                  {viewProduct.isActive ? (
+                    <>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      Deactivate
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Activate
+                    </>
+                  )}
+                </Button>
+                {/* Opening the storefront page stays available, but as an
+                    explicit opt-in rather than what "view" does by default. */}
+                <Button variant="ghost" asChild>
+                  <a
+                    href={`/products/${viewProduct.slug || viewProduct.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open storefront page
+                  </a>
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Delete Confirmation */}
       <DeleteConfirmation
         open={!!deleteProduct}
-        onOpenChange={() => setDeleteProduct(null)}
+        onOpenChange={(open) => { if (!open) setDeleteProduct(null); }}
         itemName={deleteProduct?.title}
         onConfirm={handleDeleteProduct}
       />

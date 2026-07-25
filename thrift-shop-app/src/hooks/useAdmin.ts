@@ -75,6 +75,8 @@ export function useAdminUpdateUser() {
     onSuccess: (user) => {
       queryClient.setQueryData(queryKeys.admin.users.detail(user.id), user);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users.all });
+      // A role change moves a user between the Admins/Vendors/Customers cards.
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.stats() });
       toast.success("User updated successfully");
     },
     onError: (error: ApiError) => {
@@ -91,9 +93,13 @@ export function useAdminDeleteUser() {
 
   return useMutation({
     mutationFn: (id: string) => adminApi.deleteUser(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users.all });
-      toast.success("User deleted successfully");
+      // Role counts on the stat cards come from /admin/stats, not the list.
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.stats() });
+      // Accounts with orders, reviews or a store are deactivated rather than
+      // removed. Reporting a flat "deleted" made that look like a no-op.
+      toast.success(result?.message || "User deleted successfully");
     },
     onError: (error: ApiError) => {
       toast.error(error.message || "Failed to delete user");
@@ -143,6 +149,9 @@ export function useAdminUpdateVendor() {
         vendor
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.vendors.all });
+      // Verified/pending counts live on /admin/stats and drive the stat cards
+      // and the "Pending review (n)" filter label — refresh them too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.stats() });
       toast.success("Vendor updated successfully");
     },
     onError: (error: ApiError) => {
@@ -165,6 +174,7 @@ export function useAdminVerifyVendor() {
         vendor
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.vendors.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.stats() });
       toast.success("Vendor verified successfully");
     },
     onError: (error: ApiError) => {

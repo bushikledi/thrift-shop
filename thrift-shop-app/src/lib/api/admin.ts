@@ -82,8 +82,12 @@ export const adminApi = {
   /**
    * Delete user
    */
-  deleteUser: (id: string): Promise<UserProfileResponseDto> =>
-    del<UserProfileResponseDto>(`/admin/users/${id}`),
+  /**
+   * Removes the account, or deactivates it when it owns orders, reviews or a
+   * vendor store. The response message says which happened.
+   */
+  deleteUser: (id: string): Promise<{ message: string }> =>
+    del<{ message: string }>(`/admin/users/${id}`),
 
   // === Vendors ===
   /**
