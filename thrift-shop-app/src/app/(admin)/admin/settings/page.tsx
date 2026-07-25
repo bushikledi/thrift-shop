@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { FieldError } from "@/components/forms/field-error";
 
 const settingsSchema = z.object({
   siteName: z.string().min(1, "Site name is required"),
@@ -124,15 +125,12 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="siteName">Site Name</Label>
                   <Input
+                    aria-invalid={!!errors.siteName}
                     id="siteName"
                     {...register("siteName")}
                     placeholder="ThriftShop"
                   />
-                  {errors.siteName && (
-                    <p className="text-sm text-destructive">
-                      {errors.siteName.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.siteName} />
                 </div>
 
                 <div className="space-y-2">
@@ -148,16 +146,13 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="supportEmail">Support Email</Label>
                   <Input
+                    aria-invalid={!!errors.supportEmail}
                     id="supportEmail"
                     type="email"
                     {...register("supportEmail")}
                     placeholder="support@thriftshop.com"
                   />
-                  {errors.supportEmail && (
-                    <p className="text-sm text-destructive">
-                      {errors.supportEmail.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.supportEmail} />
                 </div>
 
                 <div className="flex items-center justify-between">

@@ -76,8 +76,17 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-* {
-  border-color: hsl(var(--border));
+/*
+ * Default border colour for elements that don't set one.
+ *
+ * This must live in @layer base: unlayered CSS outranks every layer, so as a
+ * bare `* { … }` rule it silently beat every `border-*` utility in the app —
+ * `border-destructive` on an invalid field, `border-input`, all of them.
+ */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
 }
 
 body {

@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useChangePassword } from "@/hooks/useAuth";
+import { FieldError } from "@/components/forms/field-error";
 
 const changePasswordSchema = z
   .object({
@@ -97,6 +98,7 @@ export default function AccountSecurityPage() {
               <Label htmlFor="currentPassword">Current Password</Label>
               <div className="relative">
                 <Input
+                  aria-invalid={!!errors.currentPassword}
                   id="currentPassword"
                   type={showCurrentPassword ? "text" : "password"}
                   {...register("currentPassword")}
@@ -115,17 +117,14 @@ export default function AccountSecurityPage() {
                   )}
                 </Button>
               </div>
-              {errors.currentPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.currentPassword.message}
-                </p>
-              )}
+              <FieldError error={errors.currentPassword} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
               <div className="relative">
                 <Input
+                  aria-invalid={!!errors.newPassword}
                   id="newPassword"
                   type={showNewPassword ? "text" : "password"}
                   {...register("newPassword")}
@@ -144,11 +143,7 @@ export default function AccountSecurityPage() {
                   )}
                 </Button>
               </div>
-              {errors.newPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.newPassword.message}
-                </p>
-              )}
+              <FieldError error={errors.newPassword} />
               <p className="text-xs text-muted-foreground">
                 Must be at least 8 characters with uppercase, lowercase, and number
               </p>
@@ -158,6 +153,7 @@ export default function AccountSecurityPage() {
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <div className="relative">
                 <Input
+                  aria-invalid={!!errors.confirmPassword}
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   {...register("confirmPassword")}
@@ -176,11 +172,7 @@ export default function AccountSecurityPage() {
                   )}
                 </Button>
               </div>
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
+              <FieldError error={errors.confirmPassword} />
             </div>
 
             <Button

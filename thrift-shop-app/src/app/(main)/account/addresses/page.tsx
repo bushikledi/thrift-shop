@@ -30,6 +30,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/forms/field-error";
 
 const addressSchema = z.object({
   label: z.string().min(1, "Label is required"),
@@ -207,46 +208,31 @@ export default function AccountAddressesPage() {
               <div className="space-y-2">
                 <Label htmlFor="label">Label</Label>
                 <Input
+                  aria-invalid={!!errors.label}
                   id="label"
                   {...register("label")}
                   placeholder="Home, Work, etc."
                 />
-                {errors.label && (
-                  <p className="text-sm text-destructive">
-                    {errors.label.message}
-                  </p>
-                )}
+                <FieldError error={errors.label} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="street">Street Address</Label>
                 <Input id="street" {...register("street")} />
-                {errors.street && (
-                  <p className="text-sm text-destructive">
-                    {errors.street.message}
-                  </p>
-                )}
+                <FieldError error={errors.street} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
                   <Input id="city" {...register("city")} />
-                  {errors.city && (
-                    <p className="text-sm text-destructive">
-                      {errors.city.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.city} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="state">State/Province</Label>
                   <Input id="state" {...register("state")} />
-                  {errors.state && (
-                    <p className="text-sm text-destructive">
-                      {errors.state.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.state} />
                 </div>
               </div>
 
@@ -254,21 +240,13 @@ export default function AccountAddressesPage() {
                 <div className="space-y-2">
                   <Label htmlFor="postalCode">Postal Code</Label>
                   <Input id="postalCode" {...register("postalCode")} />
-                  {errors.postalCode && (
-                    <p className="text-sm text-destructive">
-                      {errors.postalCode.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.postalCode} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>
                   <Input id="country" {...register("country")} />
-                  {errors.country && (
-                    <p className="text-sm text-destructive">
-                      {errors.country.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.country} />
                 </div>
               </div>
 

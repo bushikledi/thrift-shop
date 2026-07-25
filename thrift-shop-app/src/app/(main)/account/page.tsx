@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUpdateUserProfile } from "@/hooks/useUsers";
+import { FieldError } from "@/components/forms/field-error";
 
 const profileSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -134,27 +135,20 @@ export default function AccountProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...register("name")} disabled={!isEditing} />
-                {errors.name && (
-                  <p className="text-sm text-destructive">
-                    {errors.name.message}
-                  </p>
-                )}
+                <FieldError error={errors.name} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
+                aria-invalid={!!errors.email}
                 id="email"
                 type="email"
                 {...register("email")}
                 disabled={!isEditing}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
+              <FieldError error={errors.email} />
             </div>
 
             <div className="space-y-2">
@@ -171,15 +165,14 @@ export default function AccountProfilePage() {
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
               <Textarea
+                aria-invalid={!!errors.bio}
                 id="bio"
                 {...register("bio")}
                 disabled={!isEditing}
                 placeholder="Tell us a little about yourself..."
                 rows={4}
               />
-              {errors.bio && (
-                <p className="text-sm text-destructive">{errors.bio.message}</p>
-              )}
+              <FieldError error={errors.bio} />
             </div>
 
             {isEditing && (

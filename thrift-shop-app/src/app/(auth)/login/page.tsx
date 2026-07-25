@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { GuestGuard } from "@/components/shared/auth-guard";
 import { useLogin } from "@/hooks/useAuth";
+import { FieldError } from "@/components/forms/field-error";
 
 // Validation schema
 const loginSchema = z.object({
@@ -109,6 +110,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                  aria-invalid={!!errors.email}
                   id="email"
                   type="email"
                   placeholder="you@example.com"
@@ -116,11 +118,7 @@ export default function LoginPage() {
                   disabled={loginMutation.isPending}
                   {...register("email")}
                 />
-                {errors.email && (
-                  <p className="text-sm text-destructive">
-                    {errors.email.message}
-                  </p>
-                )}
+                <FieldError error={errors.email} />
               </div>
 
               {/* Password field */}
@@ -136,6 +134,7 @@ export default function LoginPage() {
                 </div>
                 <div className="relative">
                   <Input
+                    aria-invalid={!!errors.password}
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
@@ -157,11 +156,7 @@ export default function LoginPage() {
                     )}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">
-                    {errors.password.message}
-                  </p>
-                )}
+                <FieldError error={errors.password} />
               </div>
 
               {/* Remember me */}
