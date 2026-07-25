@@ -137,6 +137,11 @@ services:
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001}
+      # Rate limit, in requests per THROTTLE_TTL seconds per IP. The defaults
+      # are the production-ish values; a load run needs a much higher ceiling
+      # or it measures the limiter instead of the API.
+      THROTTLE_TTL: ${THROTTLE_TTL:-60}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
     depends_on:
       postgres:
         condition: service_healthy
@@ -222,6 +227,33 @@ services:
       start_period: 30s
     networks:
       - thriftshop-network
+
+  # ---------------------------------------------------------------------------
+  # Load testing (k6)
+  #
+  # Behind the "load" profile so `docker compose up` never starts it. Runs on
+  # the internal network and targets http://api:3000, which keeps host port
+  # forwarding out of the measurement.
+  #
+  #   docker compose run --rm k6 run /scripts/smoke.js
+  #
+  # See load-tests/README.md — in particular, raise THROTTLE_LIMIT on the api
+  # service first or the run will measure the rate limiter.
+  # ---------------------------------------------------------------------------
+  k6:
+    image: grafana/k6:latest
+    container_name: thriftshop-k6
+    profiles: ["load"]
+    volumes:
+      - ./load-tests:/scripts:ro
+    environment:
+      BASE_URL: ${LOAD_BASE_URL:-http://api:3000/api/v1}
+      K6_NO_USAGE_REPORT: "true"
+    networks:
+      - thriftshop-network
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

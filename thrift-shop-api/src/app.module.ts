@@ -80,10 +80,21 @@ import { HealthModule } from './modules/health';
     }),
 
     // Rate limiting
+    // THROTTLE_TTL (seconds) and THROTTLE_LIMIT were documented in
+    // .env.example and validated in env.validation, but the values here were
+    // hardcoded, so setting them did nothing. They are read now — which is
+    // also what lets a load test raise the ceiling instead of measuring the
+    // rate limiter.
+    //
+    // Read from process.env rather than ConfigService: this module is
+    // constructed while ConfigModule is still initialising, and injecting
+    // ConfigService here resolved an instance with no loaded config, which
+    // silently fell back to the defaults. env.validation already guarantees
+    // both values are positive numbers when present.
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 100,
+        ttl: Number(process.env.THROTTLE_TTL || 60) * 1000,
+        limit: Number(process.env.THROTTLE_LIMIT || 100),
       },
     ]),
 
