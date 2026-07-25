@@ -52,6 +52,11 @@ export class CategoriesService {
         children: {
           where,
           orderBy: { sortOrder: 'asc' },
+          // Children carry their own product count so the admin table can list
+          // subcategories as rows rather than showing every one as "0".
+          include: {
+            _count: { select: { products: true } },
+          },
         },
         _count: {
           select: { products: true },

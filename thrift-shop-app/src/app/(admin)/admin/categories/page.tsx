@@ -17,6 +17,8 @@ import {
   Tag,
   Image as ImageIcon,
   FolderTree,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,6 +58,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   useCategories,
@@ -100,8 +103,12 @@ export default function AdminCategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [deleteCategory, setDeleteCategory] = useState<Category | null>(null);
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
 
-  const { data: categories, isLoading } = useCategories();
+  // Admins manage inactive categories too. Fetching only active ones meant a
+  // category vanished from this page the moment it was deactivated, with no
+  // way to find it again.
+  const { data: categories, isLoading } = useCategories(true);
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
@@ -122,16 +129,40 @@ export default function AdminCategoriesPage() {
   const parentId = useWatch({ control, name: "parentId" });
   const isActive = useWatch({ control, name: "isActive" });
 
-  const categoryList = categories || [];
+  const roots = categories || [];
+
+  /**
+   * The API returns roots with nested children. Flattening them gives every
+   * subcategory a row of its own — previously only top-level categories were
+   * listed, so a subcategory could be created and then never seen again.
+   */
+  const allCategories = roots.flatMap((root) => [
+    { ...root, level: 0, parentName: null as string | null },
+    ...(root.children || []).map((child) => ({
+      ...child,
+      level: 1,
+      parentName: root.name,
+    })),
+  ]);
+
+  const categoryList = allCategories.filter((c) => {
+    if (status === "active") return c.isActive !== false;
+    if (status === "inactive") return c.isActive === false;
+    return true;
+  });
 
   // Build category tree for parent selection
-  const parentCategories = categoryList.filter((c) => !c.parentId);
+  const parentCategories = roots;
 
   // Stats
+  const inactiveCount = allCategories.filter(
+    (c) => c.isActive === false
+  ).length;
+
   const stats = {
-    total: categoryList.length,
-    active: categoryList.filter((c) => c.isActive !== false).length,
-    withProducts: categoryList.filter((c) => {
+    total: allCategories.length,
+    active: allCategories.filter((c) => c.isActive !== false).length,
+    withProducts: allCategories.filter((c) => {
       const categoryWithCount = c as Category & { _count?: { products?: number } };
       return (categoryWithCount._count?.products || 0) > 0;
     }).length,
@@ -158,7 +189,7 @@ export default function AdminCategoriesPage() {
         image: "",
         parentId: null,
         isActive: true,
-        sortOrder: categoryList.length,
+        sortOrder: allCategories.length,
       });
     }
     setIsDialogOpen(true);
@@ -191,6 +222,21 @@ export default function AdminCategoriesPage() {
       // Success/error toasts are emitted by the mutation hooks; don't duplicate
       // them here (that showed two toasts per action).
       handleCloseDialog();
+    } catch {
+      // Error toast already shown by the mutation's onError.
+    }
+  };
+
+  /**
+   * Hides a category from the storefront without destroying it or
+   * uncategorising its products, which is what Delete does.
+   */
+  const handleToggleActive = async (category: Category) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: category.id,
+        data: { isActive: category.isActive === false },
+      });
     } catch {
       // Error toast already shown by the mutation's onError.
     }
@@ -289,6 +335,29 @@ export default function AdminCategoriesPage() {
         </Card>
       </div>
 
+      {/* Status filter. Without it a deactivated category was simply gone from
+          the page — the only way to reach it again was the database. */}
+      <div className="flex items-center gap-3">
+        <Select
+          value={status}
+          onValueChange={(v) => setStatus(v as "all" | "active" | "inactive")}
+        >
+          <SelectTrigger className="w-[190px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">
+              Inactive{inactiveCount > 0 ? ` (${inactiveCount})` : ""}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground">
+          Showing {categoryList.length} of {allCategories.length} categories
+        </p>
+      </div>
+
       {/* Categories Table */}
       {categoryList.length === 0 ? (
         <EmptyState
@@ -316,12 +385,18 @@ export default function AdminCategoriesPage() {
             </TableHeader>
             <TableBody>
               {categoryList.map((category) => (
-                <TableRow key={category.id}>
+                <TableRow
+                  key={category.id}
+                  className={cn(category.isActive === false && "opacity-60")}
+                >
                   <TableCell>
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3"
+                      style={{ paddingLeft: category.level * 24 }}
+                    >
                       {category.image ? (
                         <div
                           className="h-10 w-10 rounded-lg bg-cover bg-center"
@@ -347,11 +422,8 @@ export default function AdminCategoriesPage() {
                       {category.slug}
                     </code>
                   </TableCell>
-                  <TableCell>
-                    {category.parentId
-                      ? categoryList.find((c) => c.id === category.parentId)
-                          ?.name || "-"
-                      : "-"}
+                  <TableCell className="text-muted-foreground">
+                    {category.parentName || "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">
@@ -380,6 +452,22 @@ export default function AdminCategoriesPage() {
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleToggleActive(category)}
+                          disabled={updateMutation.isPending}
+                        >
+                          {category.isActive !== false ? (
+                            <>
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              Deactivate
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Activate
+                            </>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
