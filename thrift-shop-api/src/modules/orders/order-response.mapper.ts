@@ -44,9 +44,9 @@ export function mapOrderItemProduct(item: OrderItemLike): OrderItemProduct {
  * Returns a shallow copy of an order with each item's `product` normalized to
  * the documented shape. Accepts any order object that carries an `items` array.
  */
-export function mapOrderItems<
-  T extends { items: OrderItemLike[] },
->(order: T): Omit<T, 'items'> & {
+export function mapOrderItems<T extends { items: OrderItemLike[] }>(
+  order: T,
+): Omit<T, 'items'> & {
   items: Array<T['items'][number] & { product: OrderItemProduct }>;
 } {
   return {

@@ -36,7 +36,7 @@ export class OrderItemResponseDto {
 
   @ApiProperty({
     description: 'Product name snapshot at time of order',
-    example: 'Levi\'s Vintage Denim Jacket',
+    example: "Levi's Vintage Denim Jacket",
   })
   title!: string;
 
