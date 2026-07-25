@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma';
-import { SearchQueryDto } from './dto';
+import { SearchQueryDto, SearchSortOption } from './dto';
 import { sanitizeSearchQuery } from '../../common/utils';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, ProductCondition } from '../../generated/prisma/client';
 
 type ProductSearchResult = Prisma.ProductGetPayload<{
   include: {
@@ -60,8 +60,34 @@ export interface SearchResult {
 export class SearchService {
   constructor(private prisma: PrismaService) {}
 
+  /** Product ordering for each sort option offered on the search page. */
+  private productOrderBy(
+    sort: SearchSortOption = 'relevance',
+  ): Prisma.ProductOrderByWithRelationInput {
+    switch (sort) {
+      case 'newest':
+        return { createdAt: 'desc' };
+      case 'price_asc':
+        return { price: 'asc' };
+      case 'price_desc':
+        return { price: 'desc' };
+      default:
+        // No relevance score is computed, so the most-viewed listings stand in.
+        return { viewCount: 'desc' };
+    }
+  }
+
   async search(query: SearchQueryDto): Promise<SearchResult> {
-    const { types, page = 1, limit = 10 } = query;
+    const {
+      types,
+      categoryId,
+      conditions,
+      minPrice,
+      maxPrice,
+      sort,
+      page = 1,
+      limit = 10,
+    } = query;
 
     // Sanitize the search query to prevent injection attacks
     const q = sanitizeSearchQuery(query.q);
@@ -89,9 +115,28 @@ export class SearchService {
 
     // Search products
     if (searchTypes.includes('products')) {
-      const productWhere = {
+      // The search page offers category, condition, price and sort controls;
+      // they used to be sent nowhere, so none of them changed the results.
+      const conditionList = conditions
+        ?.split(',')
+        .map((c) => c.trim())
+        .filter((c): c is ProductCondition =>
+          Object.values(ProductCondition).includes(c as ProductCondition),
+        );
+
+      const productWhere: Prisma.ProductWhereInput = {
         isActive: true,
         quantity: { gt: 0 },
+        ...(categoryId ? { categoryId } : {}),
+        ...(conditionList?.length ? { condition: { in: conditionList } } : {}),
+        ...(minPrice !== undefined || maxPrice !== undefined
+          ? {
+              price: {
+                ...(minPrice !== undefined ? { gte: minPrice } : {}),
+                ...(maxPrice !== undefined ? { lte: maxPrice } : {}),
+              },
+            }
+          : {}),
         OR: [
           { title: { contains: q, mode: 'insensitive' as const } },
           { description: { contains: q, mode: 'insensitive' as const } },
@@ -120,7 +165,7 @@ export class SearchService {
               select: { id: true, slug: true, name: true },
             },
           },
-          orderBy: { viewCount: 'desc' },
+          orderBy: this.productOrderBy(sort),
           skip,
           take: limit,
         }),

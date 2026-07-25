@@ -22,7 +22,15 @@ describe('AdminService orders', () => {
       count: jest.fn().mockResolvedValue(0),
       aggregate: jest.fn().mockResolvedValue({ _avg: { rating: 0 } }),
     },
-    product: { count: jest.fn().mockResolvedValue(0) },
+    product: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    review: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+      aggregate: jest.fn().mockResolvedValue({ _avg: { rating: 0 } }),
+    },
   };
 
   const lastFindManyArgs = () => {
@@ -60,6 +68,40 @@ describe('AdminService orders', () => {
       { buyer: { name: { contains: 'ada', mode: 'insensitive' } } },
       { buyer: { email: { contains: 'ada', mode: 'insensitive' } } },
     ]);
+  });
+
+  it('filters products in the query rather than in the browser', async () => {
+    await service.getProducts({
+      search: 'denim',
+      condition: 'LIKE_NEW',
+      categoryId: 'cat-1',
+      sortBy: 'price',
+      sortOrder: 'asc',
+    });
+
+    const productCalls = prisma.product.findMany.mock.calls as Array<
+      [{ where: Record<string, unknown>; orderBy: Record<string, string> }]
+    >;
+    const args = productCalls[0][0];
+    expect(args.orderBy).toEqual({ price: 'asc' });
+    expect(args.where.categoryId).toBe('cat-1');
+    expect(args.where.condition).toBe('LIKE_NEW');
+    expect(args.where.OR).toEqual([
+      { title: { contains: 'denim', mode: 'insensitive' } },
+      { brand: { contains: 'denim', mode: 'insensitive' } },
+    ]);
+  });
+
+  it('filters reviews by rating and verified state', async () => {
+    await service.getReviews({ rating: 5, isVerified: true, search: 'great' });
+
+    const reviewCalls = prisma.review.findMany.mock.calls as Array<
+      [{ where: Record<string, unknown> }]
+    >;
+    const args = reviewCalls[0][0];
+    expect(args.where.rating).toBe(5);
+    expect(args.where.isVerified).toBe(true);
+    expect(args.where.OR).toHaveLength(4);
   });
 
   it('reports every status in ordersByStatus, including empty ones', async () => {

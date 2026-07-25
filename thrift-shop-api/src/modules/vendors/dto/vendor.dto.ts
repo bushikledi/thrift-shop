@@ -2,6 +2,9 @@ import {
   IsString,
   IsOptional,
   IsObject,
+  IsBoolean,
+  IsNumber,
+  Min,
   MinLength,
   IsIn,
   IsEmail,
@@ -9,6 +12,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { ToBoolean } from '../../../common/decorators';
 
 export interface VendorPayoutDetails {
   method: 'bank' | 'paypal' | 'manual';
@@ -116,4 +120,50 @@ export class UpdateVendorDto {
   @ValidateNested()
   @Type(() => PayoutDetailsDto)
   payoutDetails?: VendorPayoutDetails;
+}
+
+export const VENDOR_SORT_FIELDS = [
+  'rating',
+  'products',
+  'createdAt',
+  'displayName',
+] as const;
+export type VendorSortField = (typeof VENDOR_SORT_FIELDS)[number];
+
+/** Query for the public seller directory. */
+export class VendorQueryDto {
+  @ApiPropertyOptional({ description: 'Store name or bio' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  verified?: boolean;
+
+  @ApiPropertyOptional({ enum: VENDOR_SORT_FIELDS, default: 'rating' })
+  @IsOptional()
+  @IsIn(VENDOR_SORT_FIELDS)
+  sortBy?: VendorSortField;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  limit?: number;
 }

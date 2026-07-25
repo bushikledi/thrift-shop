@@ -2,6 +2,8 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsIn,
+  IsUUID,
   Min,
   MaxLength,
   Matches,
@@ -9,6 +11,14 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform, TransformFnParams } from 'class-transformer';
 import { sanitizeSearchQuery } from '../../../common/utils';
+
+export const SEARCH_SORT_OPTIONS = [
+  'relevance',
+  'newest',
+  'price_asc',
+  'price_desc',
+] as const;
+export type SearchSortOption = (typeof SEARCH_SORT_OPTIONS)[number];
 
 export class SearchQueryDto {
   @ApiPropertyOptional({
@@ -35,6 +45,48 @@ export class SearchQueryDto {
       'Types must be comma-separated values: products, vendors, categories',
   })
   types?: string;
+
+  @ApiPropertyOptional({
+    description: 'Restrict product results to a category',
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Comma-separated product conditions',
+    example: 'LIKE_NEW,GOOD',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z_]+(,[A-Z_]+)*$/, {
+    message: 'Conditions must be comma-separated ProductCondition values',
+  })
+  conditions?: string;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  minPrice?: number;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  maxPrice?: number;
+
+  @ApiPropertyOptional({
+    enum: SEARCH_SORT_OPTIONS,
+    default: 'relevance',
+    description:
+      'Ordering for product results. "relevance" falls back to view count.',
+  })
+  @IsOptional()
+  @IsIn(SEARCH_SORT_OPTIONS)
+  sort?: SearchSortOption;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()

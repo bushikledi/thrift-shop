@@ -35,6 +35,15 @@ export class AdminStatsResponseDto {
   ordersByStatus!: Record<string, number>;
 
   @ApiProperty()
+  totalReviews!: number;
+
+  @ApiProperty()
+  verifiedReviews!: number;
+
+  @ApiProperty()
+  avgReviewRating!: number;
+
+  @ApiProperty()
   totalRevenue!: number;
 
   @ApiProperty()

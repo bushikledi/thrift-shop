@@ -10,6 +10,8 @@ import {
   AdminVendorQueryDto,
   AdminUpdateVendorDto,
   AdminOrderQueryDto,
+  AdminProductQueryDto,
+  AdminReviewQueryDto,
 } from './dto';
 import { OrderStatus, UserRole, Prisma } from '../../generated/prisma/client';
 import { PAGINATION } from '../../common/constants';
@@ -39,6 +41,9 @@ export class AdminService {
       verifiedVendors,
       vendorRating,
       orderStatusCounts,
+      totalReviews,
+      verifiedReviews,
+      reviewRating,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.vendor.count(),
@@ -66,6 +71,11 @@ export class AdminService {
       // derive these from the page it happened to be showing, so "Total" was
       // really "rows on screen".
       this.prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+      // Review totals for the moderation page, whose cards were labelled
+      // "(page)" because they could only count the visible rows.
+      this.prisma.review.count(),
+      this.prisma.review.count({ where: { isVerified: true } }),
+      this.prisma.review.aggregate({ _avg: { rating: true } }),
     ]);
 
     const ordersByStatus = Object.fromEntries(
@@ -87,6 +97,9 @@ export class AdminService {
       totalProducts,
       totalOrders,
       ordersByStatus,
+      totalReviews,
+      verifiedReviews,
+      avgReviewRating: Number(reviewRating._avg.rating ?? 0),
       totalRevenue: revenue._sum.total || 0,
       newUsersThisMonth,
       newOrdersThisMonth,
@@ -431,10 +444,36 @@ export class AdminService {
   }
 
   // Product management
-  async getProducts(page = 1, limit = 20, includeInactive = true) {
+  /**
+   * Moderation list. Search, category, condition and sort are applied in the
+   * query rather than in the browser: filtering the fifteen rows that happened
+   * to be on screen made the controls look broken, and left the pagination
+   * total describing a different set than the table.
+   */
+  async getProducts(query: AdminProductQueryDto) {
+    const {
+      search,
+      categoryId,
+      condition,
+      includeInactive = true,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 20,
+    } = query;
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * safeLimit;
-    const where = includeInactive ? {} : { isActive: true };
+
+    const where: Prisma.ProductWhereInput = {};
+    if (!includeInactive) where.isActive = true;
+    if (categoryId) where.categoryId = categoryId;
+    if (condition) where.condition = condition;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { brand: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
@@ -451,7 +490,7 @@ export class AdminService {
             orderBy: { sortOrder: 'asc' },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { [sortBy]: sortOrder },
         skip,
         take: safeLimit,
       }),
@@ -500,12 +539,26 @@ export class AdminService {
   }
 
   // Review management
-  async getReviews(page = 1, limit = 20) {
+  async getReviews(query: AdminReviewQueryDto) {
+    const { search, rating, isVerified, page = 1, limit = 20 } = query;
     const safeLimit = Math.min(limit, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * safeLimit;
 
+    const where: Prisma.ReviewWhereInput = {};
+    if (rating) where.rating = rating;
+    if (isVerified !== undefined) where.isVerified = isVerified;
+    if (search) {
+      where.OR = [
+        { comment: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { product: { title: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
     const [reviews, total] = await Promise.all([
       this.prisma.review.findMany({
+        where,
         include: {
           user: {
             select: { id: true, name: true, email: true },
@@ -521,7 +574,7 @@ export class AdminService {
         skip,
         take: safeLimit,
       }),
-      this.prisma.review.count(),
+      this.prisma.review.count({ where }),
     ]);
 
     return {

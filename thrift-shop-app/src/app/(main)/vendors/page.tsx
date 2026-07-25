@@ -45,6 +45,17 @@ const sortOptions = [
   { value: "name", label: "Name A-Z" },
 ];
 
+/** Maps a sort option onto the API's field + direction. */
+const SORT_QUERY: Record<
+  string,
+  ["rating" | "products" | "createdAt" | "displayName", "asc" | "desc"]
+> = {
+  rating: ["rating", "desc"],
+  products: ["products", "desc"],
+  newest: ["createdAt", "desc"],
+  name: ["displayName", "asc"],
+};
+
 export default function VendorsPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("rating");
@@ -53,11 +64,17 @@ export default function VendorsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // The search box and sort select now reach the API. They previously did
+  // nothing at all: search was dropped and `sort` was never read.
+  const [sortBy, sortOrder] = SORT_QUERY[sort];
+
   const { data, isLoading } = useVendors({
     page,
     limit: PAGE_SIZE,
-    // search is not supported by vendor list params
     verified: true,
+    search: debouncedSearch || undefined,
+    sortBy,
+    sortOrder,
   });
 
   const vendors = Array.isArray(data) ? data : (data as unknown as { data?: VendorSummaryDto[]; meta?: { totalPages?: number; total?: number } })?.data || [];
@@ -82,12 +99,21 @@ export default function VendorsPage() {
           <Input
             placeholder="Search vendors..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
         <div className="flex items-center gap-4">
-          <Select value={sort} onValueChange={setSort}>
+          <Select
+            value={sort}
+            onValueChange={(v) => {
+              setSort(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
