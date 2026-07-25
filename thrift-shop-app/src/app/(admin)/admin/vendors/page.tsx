@@ -562,7 +562,7 @@ export default function AdminVendorsPage() {
       {/* Vendor Detail Sheet */}
       <Sheet
         open={!!selectedVendor}
-        onOpenChange={() => setSelectedVendor(null)}
+        onOpenChange={(open) => { if (!open) setSelectedVendor(null); }}
       >
         <SheetContent className="flex h-full flex-col overflow-y-auto sm:max-w-lg">
           <SheetHeader>
@@ -724,7 +724,7 @@ export default function AdminVendorsPage() {
       </Sheet>
 
       {/* Reject/Revoke Vendor Dialog */}
-      <Dialog open={!!rejectVendor} onOpenChange={() => setRejectVendor(null)}>
+      <Dialog open={!!rejectVendor} onOpenChange={(open) => { if (!open) setRejectVendor(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>

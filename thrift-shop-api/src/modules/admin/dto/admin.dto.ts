@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsNumber,
   IsEnum,
+  IsIn,
   IsUUID,
   Min,
 } from 'class-validator';
@@ -106,11 +107,33 @@ export class AdminUpdateVendorDto {
   verified?: boolean;
 }
 
+export const ADMIN_ORDER_SORT_FIELDS = [
+  'createdAt',
+  'total',
+  'status',
+] as const;
+export type AdminOrderSortField = (typeof ADMIN_ORDER_SORT_FIELDS)[number];
+
 export class AdminOrderQueryDto {
   @ApiPropertyOptional({ enum: OrderStatus })
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+
+  @ApiPropertyOptional({ description: 'Order number or buyer name/email' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: ADMIN_ORDER_SORT_FIELDS, default: 'createdAt' })
+  @IsOptional()
+  @IsIn(ADMIN_ORDER_SORT_FIELDS)
+  sortBy?: AdminOrderSortField;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
 
   @ApiPropertyOptional()
   @IsOptional()

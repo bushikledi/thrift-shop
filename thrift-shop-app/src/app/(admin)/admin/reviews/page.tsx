@@ -362,7 +362,7 @@ export default function AdminReviewsPage() {
       {/* Review Detail Dialog */}
       <Dialog
         open={!!selectedReview}
-        onOpenChange={() => setSelectedReview(null)}
+        onOpenChange={(open) => { if (!open) setSelectedReview(null); }}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -454,7 +454,7 @@ export default function AdminReviewsPage() {
       {/* Delete Confirmation */}
       <DeleteConfirmation
         open={!!deleteReview}
-        onOpenChange={() => setDeleteReview(null)}
+        onOpenChange={(open) => { if (!open) setDeleteReview(null); }}
         itemName="this review"
         onConfirm={handleDeleteReview}
         isLoading={deleteReviewMutation.isPending}

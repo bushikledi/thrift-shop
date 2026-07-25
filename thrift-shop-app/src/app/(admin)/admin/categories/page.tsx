@@ -201,10 +201,11 @@ export default function AdminCategoriesPage() {
 
     try {
       await deleteMutation.mutateAsync(deleteCategory.id);
-      toast.success("Category deleted");
+      // The mutation hook owns the success/error toasts; raising them here too
+      // was what produced two toasts per delete.
       setDeleteCategory(null);
     } catch {
-      toast.error("Failed to delete category");
+      // Error toast already shown by the mutation's onError.
     }
   };
 
@@ -518,7 +519,7 @@ export default function AdminCategoriesPage() {
       {/* Delete Confirmation */}
       <DeleteConfirmation
         open={!!deleteCategory}
-        onOpenChange={() => setDeleteCategory(null)}
+        onOpenChange={(open) => { if (!open) setDeleteCategory(null); }}
         itemName={deleteCategory?.name}
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}

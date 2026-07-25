@@ -28,6 +28,12 @@ export class AdminStatsResponseDto {
   @ApiProperty()
   totalOrders!: number;
 
+  @ApiProperty({
+    description: 'Platform-wide order count per status',
+    example: { PENDING: 4, DELIVERED: 31 },
+  })
+  ordersByStatus!: Record<string, number>;
+
   @ApiProperty()
   totalRevenue!: number;
 

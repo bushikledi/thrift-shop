@@ -260,6 +260,10 @@ export interface AdminOrdersParams {
   status?: OrderStatus;
   vendorId?: string;
   buyerId?: string;
+  /** Order number, or the buyer's name/email. */
+  search?: string;
+  sortBy?: "createdAt" | "total" | "status";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
