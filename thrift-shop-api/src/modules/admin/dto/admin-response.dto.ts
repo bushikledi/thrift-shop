@@ -8,6 +8,15 @@ export class AdminStatsResponseDto {
   totalVendors!: number;
 
   @ApiProperty()
+  totalCustomers!: number;
+
+  @ApiProperty()
+  totalAdmins!: number;
+
+  @ApiProperty()
+  verifiedUsers!: number;
+
+  @ApiProperty()
   totalProducts!: number;
 
   @ApiProperty()

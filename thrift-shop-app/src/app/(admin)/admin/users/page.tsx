@@ -68,6 +68,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   useAdminUsers,
+  useAdminStats,
   useAdminUpdateUser,
   useAdminDeleteUser,
 } from "@/hooks/useAdmin";
@@ -135,6 +136,7 @@ export default function AdminUsersPage() {
     search: debouncedSearch || undefined,
     role: role !== "all" ? (role as UserRole) : undefined,
   });
+  const { data: adminStats } = useAdminStats();
 
   const updateUserMutation = useAdminUpdateUser();
   const deleteUserMutation = useAdminDeleteUser();
@@ -159,22 +161,25 @@ export default function AdminUsersPage() {
     };
   }, [data, users.length]);
 
-  // Stats
-  const stats = useMemo(() => {
-    const admins = users.filter(
-      (u: UserProfileResponseDto) => u.role === "ADMIN"
-    ).length;
-    const vendors = users.filter(
-      (u: UserProfileResponseDto) => u.role === "VENDOR"
-    ).length;
-    const customers = users.filter(
-      (u: UserProfileResponseDto) => u.role === "CUSTOMER"
-    ).length;
-    const verified = users.filter(
-      (u: UserProfileResponseDto) => u.emailVerified
-    ).length;
-    return { admins, vendors, customers, verified, total: users.length };
-  }, [users]);
+  // Platform-wide counts come from the stats endpoint, not the current page —
+  // filtering the paginated `users` array showed 0 admins/customers whenever
+  // they weren't on the visible page.
+  const platformStats = adminStats as
+    | {
+        totalUsers?: number;
+        totalVendors?: number;
+        totalCustomers?: number;
+        totalAdmins?: number;
+        verifiedUsers?: number;
+      }
+    | undefined;
+  const stats = {
+    admins: platformStats?.totalAdmins ?? 0,
+    vendors: platformStats?.totalVendors ?? 0,
+    customers: platformStats?.totalCustomers ?? 0,
+    verified: platformStats?.verifiedUsers ?? 0,
+    total: platformStats?.totalUsers ?? totalItems,
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

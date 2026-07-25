@@ -11,7 +11,7 @@ import {
   AdminUpdateVendorDto,
   AdminOrderQueryDto,
 } from './dto';
-import { OrderStatus, Prisma } from '../../generated/prisma/client';
+import { OrderStatus, UserRole, Prisma } from '../../generated/prisma/client';
 import { PAGINATION } from '../../common/constants';
 import { UpdatePlatformSettingsDto } from './dto';
 
@@ -27,6 +27,9 @@ export class AdminService {
     const [
       totalUsers,
       totalVendors,
+      totalCustomers,
+      totalAdmins,
+      verifiedUsers,
       totalProducts,
       totalOrders,
       revenue,
@@ -36,6 +39,9 @@ export class AdminService {
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.vendor.count(),
+      this.prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
+      this.prisma.user.count({ where: { role: UserRole.ADMIN } }),
+      this.prisma.user.count({ where: { emailVerified: true } }),
       this.prisma.product.count(),
       this.prisma.order.count(),
       this.prisma.order.aggregate({
@@ -56,6 +62,9 @@ export class AdminService {
     return {
       totalUsers,
       totalVendors,
+      totalCustomers,
+      totalAdmins,
+      verifiedUsers,
       totalProducts,
       totalOrders,
       totalRevenue: revenue._sum.total || 0,
