@@ -16,6 +16,8 @@ import {
   Package,
   Settings,
   LayoutDashboard,
+  Shield,
+  Store,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +65,16 @@ export function Header() {
   const toggleLocale = () => {
     changeLocale(locale === "en" ? "sq" : "en");
   };
+
+  // Staff browsing the storefront had no way back to the area they came from
+  // — the vendor portal's "View Store" link was one-way, and admins had no
+  // entry point at all. Surface it as a real control, not a dropdown item.
+  const portal =
+    user?.role === "ADMIN"
+      ? { href: "/admin/dashboard", label: "Admin panel", icon: Shield }
+      : user?.role === "VENDOR"
+        ? { href: "/vendor/dashboard", label: "Vendor portal", icon: Store }
+        : null;
 
   const navLinks = [
     { href: "/", label: t("nav.home") },
@@ -117,6 +129,21 @@ export function Header() {
 
           {/* Right Section */}
           <div className="flex items-center space-x-2">
+            {/* Back to the staff area */}
+            {portal && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:inline-flex"
+                asChild
+              >
+                <Link href={portal.href}>
+                  <portal.icon className="mr-2 h-4 w-4" />
+                  {portal.label}
+                </Link>
+              </Button>
+            )}
+
             {/* Search Icon (Mobile/Tablet) */}
             <Button
               variant="ghost"
@@ -178,12 +205,12 @@ export function Header() {
                     </p>
                   </div>
                   <DropdownMenuSeparator />
-                  {user.role === "VENDOR" && (
+                  {portal && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/vendor/dashboard">
+                        <Link href={portal.href}>
                           <LayoutDashboard className="mr-2 h-4 w-4" />
-                          {t("nav.dashboard")}
+                          {portal.label}
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -294,6 +321,21 @@ export function Header() {
                     </motion.div>
                   ))}
                 </nav>
+
+                {/* Back to the staff area (the header button is hidden here) */}
+                {portal && (
+                  <div className="border-t pt-2">
+                    <Link
+                      href={portal.href}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Button variant="outline" className="w-full">
+                        <portal.icon className="mr-2 h-4 w-4" />
+                        {portal.label}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
 
                 {/* Auth Links */}
                 {!isAuthenticated && (

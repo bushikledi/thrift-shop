@@ -155,7 +155,15 @@ export default function AdminLayout({
             </Button>
 
             <div className="flex items-center gap-4 ml-auto">
-              <Button variant="ghost" size="icon">
+              {/* Same as the vendor portal: no endpoint lists notifications
+                  yet, so the control says so rather than doing nothing. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                title="Notifications are coming soon"
+                aria-label="Notifications are coming soon"
+              >
                 <Bell className="h-5 w-5" />
               </Button>
               <Link

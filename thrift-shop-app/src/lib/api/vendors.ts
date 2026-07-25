@@ -19,6 +19,10 @@ import type {
 export interface VendorAnalytics {
   days: number;
   series: Array<{ date: string; revenue: number; orders: number }>;
+  /** Totals for the requested window (not all time). */
+  totals: { revenue: number; orders: number };
+  /** The equal-length window immediately before, for period-over-period. */
+  previous: { revenue: number; orders: number };
   topProducts: Array<{ name: string; revenue: number; orders: number }>;
 }
 

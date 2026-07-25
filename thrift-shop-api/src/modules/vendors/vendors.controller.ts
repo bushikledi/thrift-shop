@@ -8,6 +8,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   ParseBoolPipe,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -180,7 +181,10 @@ export class VendorsController {
     @CurrentUser() user: { vendor: { id: string } },
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('status') status?: OrderStatus,
+    // Unvalidated, this went straight into a Prisma `where` and any unknown
+    // value came back as a 500 rather than a 400.
+    @Query('status', new ParseEnumPipe(OrderStatus, { optional: true }))
+    status?: OrderStatus,
   ) {
     return this.vendorsService.getOrders(
       user.vendor.id,

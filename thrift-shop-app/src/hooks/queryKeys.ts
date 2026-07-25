@@ -59,20 +59,30 @@ export const queryKeys = {
     reviews: (name: string, params?: Record<string, unknown>) =>
       [...queryKeys.vendors.all, "reviews", name, params] as const,
     // Vendor dashboard (me)
+    //
+    // Each list has a parameterless *prefix* key alongside the parameterised
+    // one. Mutations must invalidate the prefix: calling `products()` with no
+    // argument appends a literal `undefined` to the key, and React Query
+    // compares that element against the real params object, so it matches
+    // nothing. Every vendor mutation was invalidating a key that did not
+    // exist, which is why archiving, deleting or editing a product left the
+    // table showing stale rows.
     me: {
       all: ["vendors", "me"] as const,
       profile: () => [...queryKeys.vendors.me.all, "profile"] as const,
       stats: () => [...queryKeys.vendors.me.all, "stats"] as const,
       analytics: (days: number) =>
         [...queryKeys.vendors.me.all, "analytics", days] as const,
+      productLists: () => [...queryKeys.vendors.me.all, "products"] as const,
       products: (params?: Record<string, unknown>) =>
-        [...queryKeys.vendors.me.all, "products", params] as const,
+        [...queryKeys.vendors.me.productLists(), params] as const,
+      orderLists: () => [...queryKeys.vendors.me.all, "orders"] as const,
       orders: (params?: Record<string, unknown>) =>
-        [...queryKeys.vendors.me.all, "orders", params] as const,
-      order: (id: string) =>
-        [...queryKeys.vendors.me.all, "orders", id] as const,
+        [...queryKeys.vendors.me.orderLists(), params] as const,
+      order: (id: string) => [...queryKeys.vendors.me.orderLists(), id] as const,
+      reviewLists: () => [...queryKeys.vendors.me.all, "reviews"] as const,
       reviews: (params?: Record<string, unknown>) =>
-        [...queryKeys.vendors.me.all, "reviews", params] as const,
+        [...queryKeys.vendors.me.reviewLists(), params] as const,
     },
   },
 

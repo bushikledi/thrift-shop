@@ -158,7 +158,17 @@ export default function VendorLayout({
             </Button>
 
             <div className="flex items-center gap-4 ml-auto">
-              <Button variant="ghost" size="icon">
+              {/* Disabled rather than silently inert: the notifications
+                  module is send-only (outbound email), so there is no
+                  endpoint to list a vendor's notifications yet. Matches how
+                  the unavailable OAuth buttons are presented. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                title="Notifications are coming soon"
+                aria-label="Notifications are coming soon"
+              >
                 <Bell className="h-5 w-5" />
               </Button>
               <Link

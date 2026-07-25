@@ -56,8 +56,11 @@ export class VendorListResponseDto {
 }
 
 export class VendorDashboardStatsDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'All listings, including archived ones' })
   totalProducts!: number;
+
+  @ApiProperty({ description: 'Listings currently visible to customers' })
+  activeProducts!: number;
 
   @ApiProperty()
   totalOrders!: number;

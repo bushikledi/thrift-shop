@@ -102,8 +102,9 @@ export function useCreateProduct() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
       // Invalidate vendor products
       queryClient.invalidateQueries({
-        queryKey: queryKeys.vendors.me.products(),
+        queryKey: queryKeys.vendors.me.productLists(),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.me.stats() });
       toast.success("Product created successfully");
     },
     onError: (error: ApiError) => {
@@ -119,8 +120,18 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProductDto }) =>
-      productsApi.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateProductDto;
+      /**
+       * Overrides the generic success toast. Callers used to fire their own
+       * toast on top of this one, so a single archive produced two.
+       */
+      successMessage?: string;
+    }) => productsApi.update(id, data),
     onMutate: async ({ id, data }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({
@@ -152,18 +163,27 @@ export function useUpdateProduct() {
       }
       toast.error(error.message || "Failed to update product");
     },
-    onSuccess: (product: ProductDetailDto) => {
+    onSuccess: (product: ProductDetailDto, variables) => {
       // Update cache with server response
       queryClient.setQueryData(
         queryKeys.products.detail(product.slug),
         product
       );
+      // Drop every other cached detail entry: a title change gives the product
+      // a new slug, so the entry under the previous slug is now a 404 waiting
+      // to happen.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.products.details(),
+        predicate: (query) =>
+          query.queryKey[query.queryKey.length - 1] !== product.slug,
+      });
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.vendors.me.products(),
+        queryKey: queryKeys.vendors.me.productLists(),
       });
-      toast.success("Product updated successfully");
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.me.stats() });
+      toast.success(variables.successMessage ?? "Product updated successfully");
     },
   });
 }
@@ -175,53 +195,74 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => productsApi.delete(id),
-    onMutate: async (id) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: queryKeys.products.lists(),
-      });
+    /**
+     * `silent` suppresses the per-item toast so a bulk delete reports one
+     * summary instead of one notification per row.
+     */
+    mutationFn: ({ id }: { id: string; silent?: boolean }) =>
+      productsApi.delete(id),
+    onMutate: async ({ id }) => {
+      // The vendor's own table is a separate query from the public catalogue
+      // lists; leaving it out meant the row the vendor just deleted stayed on
+      // screen until something else refetched it.
+      const listFilters: { queryKey: readonly unknown[] }[] = [
+        { queryKey: queryKeys.products.lists() },
+        { queryKey: queryKeys.vendors.me.productLists() },
+      ];
+
+      await Promise.all(
+        listFilters.map((filter) => queryClient.cancelQueries(filter))
+      );
 
       // Snapshot for rollback
-      const previousProducts =
-        queryClient.getQueriesData<PaginatedProductsResponseDto>({
-          queryKey: queryKeys.products.lists(),
-        });
+      const previousProducts = listFilters.flatMap((filter) =>
+        queryClient.getQueriesData<PaginatedProductsResponseDto>(filter)
+      );
 
       // Optimistically remove from all lists
-      queryClient.setQueriesData<PaginatedProductsResponseDto>(
-        { queryKey: queryKeys.products.lists() },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            data: old.data.filter((p) => p.id !== id),
-            meta: {
-              ...old.meta,
-              total: old.meta.total - 1,
-            },
-          };
-        }
-      );
+      for (const filter of listFilters) {
+        queryClient.setQueriesData<PaginatedProductsResponseDto>(
+          filter,
+          (old) => {
+            if (!old?.data) return old;
+            return {
+              ...old,
+              data: old.data.filter((p) => p.id !== id),
+              meta: {
+                ...old.meta,
+                total: old.meta.total - 1,
+              },
+            };
+          }
+        );
+      }
 
       return { previousProducts };
     },
-    onError: (error: ApiError, id, context) => {
+    onError: (error: ApiError, variables, context) => {
       // Rollback on error
       context?.previousProducts.forEach(([queryKey, data]) => {
         if (data) {
           queryClient.setQueryData(queryKey, data);
         }
       });
-      toast.error(error.message || "Failed to delete product");
+      if (!variables.silent) {
+        toast.error(error.message || "Failed to delete product");
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       // Invalidate all product queries
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.vendors.me.products(),
+        queryKey: queryKeys.vendors.me.productLists(),
       });
-      toast.success("Product deleted successfully");
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.me.stats() });
+      // A product with existing orders is archived rather than removed, and it
+      // reappears in the vendor's list as Inactive. Report what the server
+      // actually did instead of claiming a deletion every time.
+      if (!variables.silent) {
+        toast.success(result?.message || "Product deleted successfully");
+      }
     },
   });
 }
