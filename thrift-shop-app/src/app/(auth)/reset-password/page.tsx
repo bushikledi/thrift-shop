@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/card";
 import { GuestGuard } from "@/components/shared/auth-guard";
 import { authApi } from "@/lib/api/auth";
+import { FieldError } from "@/components/forms/field-error";
 
 // Password requirements
 const passwordRequirements = [
@@ -258,11 +259,7 @@ export default function ResetPasswordPage() {
                   </div>
                 )}
 
-                {errors.password && (
-                  <p className="text-sm text-destructive">
-                    {errors.password.message}
-                  </p>
-                )}
+                <FieldError error={errors.password} />
               </div>
 
               {/* Confirm password field */}
@@ -270,6 +267,7 @@ export default function ResetPasswordPage() {
                 <Label htmlFor="confirmPassword">Confirm password</Label>
                 <div className="relative">
                   <Input
+                    aria-invalid={!!errors.confirmPassword}
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm new password"
@@ -291,11 +289,7 @@ export default function ResetPasswordPage() {
                     )}
                   </button>
                 </div>
-                {errors.confirmPassword && (
-                  <p className="text-sm text-destructive">
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
+                <FieldError error={errors.confirmPassword} />
               </div>
             </CardContent>
 

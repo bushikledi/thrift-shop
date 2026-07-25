@@ -43,6 +43,7 @@ import { useCheckout } from "@/hooks/useOrders";
 import { useUserProfile } from "@/hooks/useUsers";
 import { LoadingSkeleton, EmptyCart } from "@/components/shared";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { FieldError } from "@/components/forms/field-error";
 
 // Validation schema
 const checkoutSchema = z
@@ -491,16 +492,7 @@ export default function CheckoutPage() {
                         errors.firstName ? "firstName-error" : undefined
                       }
                     />
-                    {errors.firstName && (
-                      <p
-                        id="firstName-error"
-                        className="text-sm text-destructive flex items-center gap-1"
-                        role="alert"
-                      >
-                        <span aria-hidden="true">⚠️</span>
-                        {errors.firstName.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.firstName} id="firstName-error" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
@@ -516,16 +508,7 @@ export default function CheckoutPage() {
                         errors.lastName ? "lastName-error" : undefined
                       }
                     />
-                    {errors.lastName && (
-                      <p
-                        id="lastName-error"
-                        className="text-sm text-destructive flex items-center gap-1"
-                        role="alert"
-                      >
-                        <span aria-hidden="true">⚠️</span>
-                        {errors.lastName.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.lastName} id="lastName-error" />
                   </div>
                 </div>
 
@@ -545,16 +528,7 @@ export default function CheckoutPage() {
                         errors.email ? "email-error" : undefined
                       }
                     />
-                    {errors.email && (
-                      <p
-                        id="email-error"
-                        className="text-sm text-destructive flex items-center gap-1"
-                        role="alert"
-                      >
-                        <span aria-hidden="true">⚠️</span>
-                        {errors.email.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.email} id="email-error" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
@@ -583,16 +557,7 @@ export default function CheckoutPage() {
                         errors.phone ? "phone-error" : undefined
                       }
                     />
-                    {errors.phone && (
-                      <p
-                        id="phone-error"
-                        className="text-sm text-destructive flex items-center gap-1"
-                        role="alert"
-                      >
-                        <span aria-hidden="true">⚠️</span>
-                        {errors.phone.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.phone} id="phone-error" />
                   </div>
                 </div>
 
@@ -604,6 +569,7 @@ export default function CheckoutPage() {
                 >
                   <Label htmlFor="address">Address</Label>
                   <Input
+                    aria-invalid={!!errors.address}
                     id="address"
                     {...register("address")}
                     disabled={
@@ -611,11 +577,7 @@ export default function CheckoutPage() {
                       (usingSavedAddress && !isEditingAddress)
                     }
                   />
-                  {errors.address && (
-                    <p className="text-sm text-destructive">
-                      {errors.address.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.address} />
                 </div>
 
                 <div
@@ -646,6 +608,7 @@ export default function CheckoutPage() {
                   <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
                     <Input
+                      aria-invalid={!!errors.city}
                       id="city"
                       {...register("city")}
                       disabled={
@@ -653,15 +616,12 @@ export default function CheckoutPage() {
                         (usingSavedAddress && !isEditingAddress)
                       }
                     />
-                    {errors.city && (
-                      <p className="text-sm text-destructive">
-                        {errors.city.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.city} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State</Label>
                     <Input
+                      aria-invalid={!!errors.state}
                       id="state"
                       {...register("state")}
                       placeholder="State/Province"
@@ -670,15 +630,12 @@ export default function CheckoutPage() {
                         (usingSavedAddress && !isEditingAddress)
                       }
                     />
-                    {errors.state && (
-                      <p className="text-sm text-destructive">
-                        {errors.state.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.state} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">ZIP Code</Label>
                     <Input
+                      aria-invalid={!!errors.zipCode}
                       id="zipCode"
                       placeholder="12345"
                       {...register("zipCode", {
@@ -698,15 +655,7 @@ export default function CheckoutPage() {
                       }
                       maxLength={10}
                     />
-                    {errors.zipCode && (
-                      <p
-                        className="text-sm text-destructive flex items-center gap-1"
-                        role="alert"
-                      >
-                        <span aria-hidden="true">⚠️</span>
-                        {errors.zipCode.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.zipCode} />
                   </div>
                 </div>
 

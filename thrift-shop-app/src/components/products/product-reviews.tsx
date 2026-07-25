@@ -23,6 +23,7 @@ import { useProductReviews, useCreateReview } from "@/hooks/useReviews";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { EmptyReviews, LoadingSkeleton } from "@/components/shared";
 import type { ReviewResponseDto } from "@/types";
+import { FieldError } from "@/components/forms/field-error";
 
 interface ProductReviewsProps {
   productId: string;
@@ -187,27 +188,20 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                       </button>
                     ))}
                   </div>
-                  {errors.rating && (
-                    <p className="text-sm text-destructive">
-                      {errors.rating.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.rating} />
                 </div>
 
                 {/* Review Text */}
                 <div className="space-y-2">
                   <Label htmlFor="comment">Your Review</Label>
                   <Textarea
+                    aria-invalid={!!errors.comment}
                     id="comment"
                     placeholder="Share your experience with this product..."
                     rows={4}
                     {...register("comment")}
                   />
-                  {errors.comment && (
-                    <p className="text-sm text-destructive">
-                      {errors.comment.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.comment} />
                 </div>
 
                 {/* Actions */}

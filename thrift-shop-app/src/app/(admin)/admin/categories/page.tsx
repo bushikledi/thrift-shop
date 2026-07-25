@@ -69,6 +69,7 @@ import {
   DeleteConfirmation,
 } from "@/components/shared";
 import type { CategoryResponseDto as Category } from "@/types";
+import { FieldError } from "@/components/forms/field-error";
 
 // Validation schema
 const categorySchema = z.object({
@@ -418,30 +419,24 @@ export default function AdminCategoriesPage() {
             <div>
               <Label htmlFor="name">Name</Label>
               <Input
+                aria-invalid={!!errors.name}
                 id="name"
                 {...register("name")}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="Category name"
               />
-              {errors.name && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.name.message}
-                </p>
-              )}
+              <FieldError error={errors.name} />
             </div>
 
             <div>
               <Label htmlFor="slug">Slug</Label>
               <Input
+                aria-invalid={!!errors.slug}
                 id="slug"
                 {...register("slug")}
                 placeholder="category-slug"
               />
-              {errors.slug && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.slug.message}
-                </p>
-              )}
+              <FieldError error={errors.slug} />
             </div>
 
             <div>
@@ -457,15 +452,12 @@ export default function AdminCategoriesPage() {
             <div>
               <Label htmlFor="image">Image URL</Label>
               <Input
+                aria-invalid={!!errors.image}
                 id="image"
                 {...register("image")}
                 placeholder="https://example.com/image.jpg"
               />
-              {errors.image && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.image.message}
-                </p>
-              )}
+              <FieldError error={errors.image} />
             </div>
 
             <div>

@@ -31,6 +31,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { FieldError } from "@/components/forms/field-error";
 
 const storeSettingsSchema = z.object({
   name: z.string().min(1, "Store name is required"),
@@ -166,15 +167,12 @@ export default function VendorSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="name">Store Name</Label>
                   <Input
+                    aria-invalid={!!errors.name}
                     id="name"
                     {...register("name")}
                     placeholder="My Thrift Store"
                   />
-                  {errors.name && (
-                    <p className="text-sm text-destructive">
-                      {errors.name.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.name} />
                 </div>
 
                 <div className="space-y-2">
@@ -203,16 +201,13 @@ export default function VendorSettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
+                      aria-invalid={!!errors.email}
                       id="email"
                       type="email"
                       {...register("email")}
                       placeholder="store@example.com"
                     />
-                    {errors.email && (
-                      <p className="text-sm text-destructive">
-                        {errors.email.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.email} />
                   </div>
 
                   <div className="space-y-2">

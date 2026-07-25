@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { GuestGuard } from "@/components/shared/auth-guard";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { FieldError } from "@/components/forms/field-error";
 
 // Password requirements
 const passwordRequirements = [
@@ -147,32 +148,26 @@ export default function SignupPage() {
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First name</Label>
                   <Input
+                    aria-invalid={!!errors.firstName}
                     id="firstName"
                     placeholder="John"
                     autoComplete="given-name"
                     disabled={isLoading}
                     {...register("firstName")}
                   />
-                  {errors.firstName && (
-                    <p className="text-sm text-destructive">
-                      {errors.firstName.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.firstName} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last name</Label>
                   <Input
+                    aria-invalid={!!errors.lastName}
                     id="lastName"
                     placeholder="Doe"
                     autoComplete="family-name"
                     disabled={isLoading}
                     {...register("lastName")}
                   />
-                  {errors.lastName && (
-                    <p className="text-sm text-destructive">
-                      {errors.lastName.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.lastName} />
                 </div>
               </div>
 
@@ -180,6 +175,7 @@ export default function SignupPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                  aria-invalid={!!errors.email}
                   id="email"
                   type="email"
                   placeholder="you@example.com"
@@ -187,11 +183,7 @@ export default function SignupPage() {
                   disabled={isLoading}
                   {...register("email")}
                 />
-                {errors.email && (
-                  <p className="text-sm text-destructive">
-                    {errors.email.message}
-                  </p>
-                )}
+                <FieldError error={errors.email} />
               </div>
 
               {/* Account type */}
@@ -268,11 +260,7 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                {errors.password && (
-                  <p className="text-sm text-destructive">
-                    {errors.password.message}
-                  </p>
-                )}
+                <FieldError error={errors.password} />
               </div>
 
               {/* Confirm password field */}
@@ -280,6 +268,7 @@ export default function SignupPage() {
                 <Label htmlFor="confirmPassword">Confirm password</Label>
                 <div className="relative">
                   <Input
+                    aria-invalid={!!errors.confirmPassword}
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
@@ -301,11 +290,7 @@ export default function SignupPage() {
                     )}
                   </button>
                 </div>
-                {errors.confirmPassword && (
-                  <p className="text-sm text-destructive">
-                    {errors.confirmPassword.message}
-                  </p>
-                )}
+                <FieldError error={errors.confirmPassword} />
               </div>
 
               {/* Terms acceptance */}
@@ -335,11 +320,7 @@ export default function SignupPage() {
                   </Link>
                 </Label>
               </div>
-              {errors.acceptTerms && (
-                <p className="text-sm text-destructive">
-                  {errors.acceptTerms.message}
-                </p>
-              )}
+              <FieldError error={errors.acceptTerms} />
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">

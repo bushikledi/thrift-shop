@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { GuestGuard } from "@/components/shared/auth-guard";
 import { authApi } from "@/lib/api/auth";
+import { FieldError } from "@/components/forms/field-error";
 
 // Validation schema
 const forgotPasswordSchema = z.object({
@@ -91,6 +92,7 @@ export default function ForgotPasswordPage() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
+                      aria-invalid={!!errors.email}
                       id="email"
                       type="email"
                       placeholder="Enter your email"
@@ -98,11 +100,7 @@ export default function ForgotPasswordPage() {
                       disabled={isLoading}
                       {...register("email")}
                     />
-                    {errors.email && (
-                      <p className="text-sm text-destructive">
-                        {errors.email.message}
-                      </p>
-                    )}
+                    <FieldError error={errors.email} />
                   </div>
                 </CardContent>
 

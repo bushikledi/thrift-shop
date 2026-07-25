@@ -36,6 +36,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { mediaApi } from "@/lib/api/media";
 import type { ProductDetailDto, ProductCondition } from "@/types";
+import { FieldError } from "@/components/forms/field-error";
 
 const MAX_IMAGES = 8;
 
@@ -73,9 +74,9 @@ const conditions: {
     description: "Worn once or twice, excellent condition",
   },
   {
-    value: "LIKE_NEW",
-    label: "Like New",
-    description: "Worn once or twice, excellent condition",
+    value: "VERY_GOOD",
+    label: "Very Good",
+    description: "Minimal signs of use, excellent condition",
   },
   {
     value: "GOOD",
@@ -268,30 +269,24 @@ export function ProductForm({ product, mode }: ProductFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="name">Product Name *</Label>
                 <Input
+                  aria-invalid={!!errors.title}
                   id="name"
                   placeholder="e.g., Vintage Levi's 501 Jeans"
                   {...register("title")}
                 />
-                {errors.title && (
-                  <p className="text-sm text-destructive">
-                    {errors.title.message}
-                  </p>
-                )}
+                <FieldError error={errors.title} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
                 <Textarea
+                  aria-invalid={!!errors.description}
                   id="description"
                   placeholder="Describe your product in detail..."
                   rows={5}
                   {...register("description")}
                 />
-                {errors.description && (
-                  <p className="text-sm text-destructive">
-                    {errors.description.message}
-                  </p>
-                )}
+                <FieldError error={errors.description} />
               </div>
             </CardContent>
           </Card>
@@ -392,6 +387,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                       $
                     </span>
                     <Input
+                      aria-invalid={!!errors.price}
                       id="price"
                       type="number"
                       step="0.01"
@@ -400,20 +396,17 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                       {...register("price", { valueAsNumber: true })}
                     />
                   </div>
-                  {errors.price && (
-                    <p className="text-sm text-destructive">
-                      {errors.price.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.price} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="compareAtPrice">Compare at Price</Label>
+                  <Label htmlFor="comparePrice">Compare at Price</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                       $
                     </span>
                     <Input
+                      aria-invalid={!!errors.comparePrice}
                       id="comparePrice"
                       type="number"
                       step="0.01"
@@ -428,6 +421,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                       })}
                     />
                   </div>
+                  <FieldError error={errors.comparePrice} />
                   <p className="text-xs text-muted-foreground">
                     Show a crossed-out original price
                   </p>
@@ -446,16 +440,13 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="quantity">Quantity *</Label>
                   <Input
+                    aria-invalid={!!errors.quantity}
                     id="quantity"
                     type="number"
                     min="0"
                     {...register("quantity", { valueAsNumber: true })}
                   />
-                  {errors.quantity && (
-                    <p className="text-sm text-destructive">
-                      {errors.quantity.message}
-                    </p>
-                  )}
+                  <FieldError error={errors.quantity} />
                 </div>
               </div>
             </CardContent>
@@ -513,11 +504,7 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                   </Select>
                 )}
               />
-              {errors.categoryId && (
-                <p className="mt-1 text-sm text-destructive">
-                  {errors.categoryId.message}
-                </p>
-              )}
+              <FieldError error={errors.categoryId} />
             </CardContent>
           </Card>
 
