@@ -12,7 +12,6 @@ import {
   CheckCircle,
   XCircle,
   Store,
-  ExternalLink,
   Eye,
   ShieldCheck,
   ShieldX,
@@ -66,13 +65,13 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   useAdminVendors,
   useAdminVerifyVendor,
   useAdminUpdateVendor,
+  useAdminStats,
 } from "@/hooks/useAdmin";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Pagination, TableSkeleton, EmptyState } from "@/components/shared";
@@ -83,7 +82,7 @@ const PAGE_SIZE = 10;
 const statusOptions = [
   { value: "all", label: "All Status" },
   { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
+  { value: "pending", label: "Pending review" },
 ];
 
 export default function AdminVendorsPage() {
@@ -97,7 +96,6 @@ export default function AdminVendorsPage() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [rejectVendor, setRejectVendor] = useState<Vendor | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -107,8 +105,9 @@ export default function AdminVendorsPage() {
     search: debouncedSearch || undefined,
     verified:
       status === "verified" ? true : status === "pending" ? false : undefined,
-    ...(activeTab === "pending" && { verified: false }),
   });
+
+  const { data: platformStats } = useAdminStats();
 
   const verifyVendorMutation = useAdminVerifyVendor();
   const updateVendorMutation = useAdminUpdateVendor();
@@ -133,22 +132,25 @@ export default function AdminVendorsPage() {
     };
   }, [data, vendors.length]);
 
-  // Stats
+  // Platform-wide stats. Deriving these from `vendors` would only ever count
+  // the current page, which is what made the cards read 0 while the table was
+  // full of vendors.
   const stats = useMemo(() => {
-    const verified = vendors.filter((v: Vendor) => v.verified).length;
-    const pending = vendors.filter((v: Vendor) => !v.verified).length;
-    const avgRating =
-      vendors.length > 0
-        ? vendors.reduce((sum: number, v: Vendor) => sum + (v.rating || 0), 0) /
-          vendors.length
-        : 0;
-    return { verified, pending, avgRating, total: vendors.length };
-  }, [vendors]);
-
-  const pendingVendors = useMemo(
-    () => vendors.filter((v: Vendor) => !v.verified),
-    [vendors]
-  );
+    const s = platformStats as
+      | {
+          totalVendors?: number;
+          verifiedVendors?: number;
+          pendingVendorVerifications?: number;
+          avgVendorRating?: number;
+        }
+      | undefined;
+    return {
+      total: s?.totalVendors ?? 0,
+      verified: s?.verifiedVendors ?? 0,
+      pending: s?.pendingVendorVerifications ?? 0,
+      avgRating: s?.avgVendorRating ?? 0,
+    };
+  }, [platformStats]);
 
   const handleVerifyVendor = async (vendor: Vendor) => {
     try {
@@ -215,7 +217,7 @@ export default function AdminVendorsPage() {
             <Store className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalItems}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               {stats.verified} verified
             </p>
@@ -260,22 +262,10 @@ export default function AdminVendorsPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all">All Vendors</TabsTrigger>
-          <TabsTrigger value="pending" className="relative">
-            Pending Review
-            {pendingVendors.length > 0 && (
-              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                {pendingVendors.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Filters */}
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+      {/* Filters — status lives in exactly one control so the table and the
+          cards can never disagree about what is being shown. */}
+      <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -285,23 +275,142 @@ export default function AdminVendorsPage() {
               className="pl-10"
             />
           </div>
-          {activeTab === "all" && (
-            <Select value={status} onValueChange={handleStatusFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Select value={status} onValueChange={handleStatusFilter}>
+            <SelectTrigger className="w-[190px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                  {option.value === "pending" && stats.pending > 0
+                    ? ` (${stats.pending})`
+                    : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {status !== "pending" && stats.pending > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleStatusFilter("pending")}
+            >
+              <Users className="mr-2 h-4 w-4 text-amber-500" />
+              Review {stats.pending} pending
+            </Button>
           )}
         </div>
 
-        <TabsContent value="all" className="mt-4">
+        {status === "pending" ? (
+          <div className="mt-4">
+            {isLoading ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="animate-pulse space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-full bg-muted" />
+                          <div className="space-y-2 flex-1">
+                            <div className="h-4 w-1/2 bg-muted rounded" />
+                            <div className="h-3 w-1/3 bg-muted rounded" />
+                          </div>
+                        </div>
+                        <div className="h-20 bg-muted rounded" />
+                        <div className="flex gap-2">
+                          <div className="h-9 flex-1 bg-muted rounded" />
+                          <div className="h-9 flex-1 bg-muted rounded" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : vendors.length === 0 ? (
+              <EmptyState
+                icon={CheckCircle}
+                title="No pending applications"
+                description="All vendor applications have been reviewed."
+              />
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {vendors.map((vendor: Vendor) => (
+                    <Card key={vendor.id} className="overflow-hidden">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={vendor.logo || undefined} />
+                              <AvatarFallback>
+                                {vendor.displayName?.[0] || "V"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <CardTitle className="text-lg">
+                                {vendor.displayName}
+                              </CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                @{vendor.name}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-amber-600 border-amber-300"
+                          >
+                            Pending
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {vendor.bio || "No description provided."}
+                        </p>
+
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            className="flex-1"
+                            onClick={() => handleVerifyVendor(vendor)}
+                            disabled={verifyVendorMutation.isPending}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setRejectVendor(vendor)}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {(page - 1) * PAGE_SIZE + 1} to{" "}
+                      {Math.min(page * PAGE_SIZE, totalItems)} of {totalItems}{" "}
+                      vendors
+                    </p>
+                    <Pagination
+                      currentPage={page}
+                      totalPages={totalPages}
+                      onPageChange={setPage}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4">
           {/* Vendors Table */}
           {isLoading ? (
             <TableSkeleton rows={PAGE_SIZE} columns={5} />
@@ -446,99 +555,9 @@ export default function AdminVendorsPage() {
               )}
             </>
           )}
-        </TabsContent>
-
-        <TabsContent value="pending" className="mt-4">
-          {/* Pending Applications */}
-          {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <div className="animate-pulse space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-muted" />
-                        <div className="space-y-2 flex-1">
-                          <div className="h-4 w-1/2 bg-muted rounded" />
-                          <div className="h-3 w-1/3 bg-muted rounded" />
-                        </div>
-                      </div>
-                      <div className="h-20 bg-muted rounded" />
-                      <div className="flex gap-2">
-                        <div className="h-9 flex-1 bg-muted rounded" />
-                        <div className="h-9 flex-1 bg-muted rounded" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : pendingVendors.length === 0 ? (
-            <EmptyState
-              icon={CheckCircle}
-              title="No pending applications"
-              description="All vendor applications have been reviewed."
-            />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {pendingVendors.map((vendor: Vendor) => (
-                <Card key={vendor.id} className="overflow-hidden">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={vendor.logo || undefined} />
-                          <AvatarFallback>
-                            {vendor.displayName?.[0] || "V"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {vendor.displayName}
-                          </CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            @{vendor.name}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-300"
-                      >
-                        Pending
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {vendor.bio || "No description provided."}
-                    </p>
-
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        className="flex-1"
-                        onClick={() => handleVerifyVendor(vendor)}
-                        disabled={verifyVendorMutation.isPending}
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setRejectVendor(vendor)}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Reject
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
+      </div>
 
       {/* Vendor Detail Sheet */}
       <Sheet

@@ -9,6 +9,7 @@ import {
   Body,
   UseGuards,
   ParseUUIDPipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -238,11 +239,12 @@ export class AdminController {
   async getProducts(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('includeInactive') includeInactive?: boolean,
+    @Query('includeInactive', new ParseBoolPipe({ optional: true }))
+    includeInactive?: boolean,
   ) {
     return this.adminService.getProducts(
-      page || 1,
-      limit || 20,
+      Number(page) || 1,
+      Number(limit) || 20,
       includeInactive ?? true,
     );
   }

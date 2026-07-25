@@ -1,6 +1,8 @@
 /**
  * Main Layout
- * Wraps customer-facing pages with header, footer and redirects admin/vendor users
+ * Wraps customer-facing pages with header and footer. Admin/vendor users are
+ * redirected away from the customer-only pages (cart, checkout, account,
+ * orders) but can browse the catalog like anyone else.
  */
 "use client";
 

@@ -311,13 +311,14 @@ export function ProductCard({
           </div>
         </div>
 
-        {/* Content */}
-        <CardContent className="p-4">
-          <h3 className="font-semibold line-clamp-1 group-hover:text-primary">
+        {/* Content. Padding is kept tight here: the image already dominates the
+            card, and the old p-4 blocks stacked into a lot of dead height. */}
+        <CardContent className="px-3 pb-0 pt-3">
+          <h3 className="font-semibold leading-snug line-clamp-1 group-hover:text-primary">
             {product.title}
           </h3>
           {showVendor && product.vendor && (
-            <p className="text-sm text-muted-foreground line-clamp-1">
+            <p className="text-xs text-muted-foreground line-clamp-1">
               {product.vendor.displayName}
             </p>
           )}
@@ -326,18 +327,18 @@ export function ProductCard({
           {"reviews" in product &&
             product.reviews &&
             product.reviews.length > 0 && (
-              <div className="mt-1 flex items-center gap-1">
+              <div className="flex items-center gap-1">
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {product.reviews.length} reviews
                 </span>
               </div>
             )}
         </CardContent>
 
-        <CardFooter className="flex items-center justify-between p-4 pt-0">
+        <CardFooter className="flex items-center justify-between px-3 pb-0 pt-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold">
+            <span className="text-lg font-bold leading-tight">
               {formatCurrency(product.price)}
             </span>
             {hasDiscount && (
@@ -350,7 +351,7 @@ export function ProductCard({
       </Link>
 
       {/* Add to cart button */}
-      <div className="px-4 pb-4">
+      <div className="px-3 pb-3 pt-2">
         <Button
           className="w-full transition-all"
           size="sm"

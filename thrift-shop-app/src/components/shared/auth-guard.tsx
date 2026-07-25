@@ -174,8 +174,24 @@ export function usePermissions() {
 }
 
 /**
- * Guard that redirects admin/vendor users to their respective dashboards
- * Used to prevent admin/vendor from accessing customer-only pages
+ * Routes that only make sense for a shopper. Admins and vendors are sent to
+ * their own dashboard when they land here.
+ *
+ * Everything else under the storefront — the catalog, product pages, vendor
+ * pages, search — stays open to every role. Redirecting the whole storefront
+ * meant an admin or vendor could never open a product page or preview their
+ * own shop: every such link bounced straight back to the dashboard.
+ */
+const CUSTOMER_ONLY_PREFIXES = ["/cart", "/checkout", "/account", "/orders"];
+
+function isCustomerOnlyPath(pathname: string) {
+  return CUSTOMER_ONLY_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+/**
+ * Guard that redirects admin/vendor users away from customer-only pages.
  */
 interface RoleBasedRedirectProps {
   children: React.ReactNode;
@@ -183,17 +199,21 @@ interface RoleBasedRedirectProps {
 
 export function RoleBasedRedirect({ children }: RoleBasedRedirectProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
+  const shouldRedirect =
+    !isLoading &&
+    isAuthenticated &&
+    (user?.role === "ADMIN" || user?.role === "VENDOR") &&
+    isCustomerOnlyPath(pathname);
+
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
-      if (user.role === "ADMIN") {
-        router.replace("/admin/dashboard");
-      } else if (user.role === "VENDOR") {
-        router.replace("/vendor/dashboard");
-      }
-    }
-  }, [isAuthenticated, isLoading, user, router]);
+    if (!shouldRedirect) return;
+    router.replace(
+      user?.role === "ADMIN" ? "/admin/dashboard" : "/vendor/dashboard"
+    );
+  }, [shouldRedirect, user?.role, router]);
 
   // Show loading while checking auth status
   if (isLoading) {
@@ -204,11 +224,8 @@ export function RoleBasedRedirect({ children }: RoleBasedRedirectProps) {
     );
   }
 
-  // Redirect admin/vendor users
-  if (isAuthenticated && user) {
-    if (user.role === "ADMIN" || user.role === "VENDOR") {
-      return null;
-    }
+  if (shouldRedirect) {
+    return null;
   }
 
   return <>{children}</>;

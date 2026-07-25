@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -144,13 +145,14 @@ export class VendorsController {
     @CurrentUser() user: { vendor: { id: string } },
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('includeInactive') includeInactive?: boolean,
+    @Query('includeInactive', new ParseBoolPipe({ optional: true }))
+    includeInactive?: boolean,
     @Query('search') search?: string,
   ) {
     return this.vendorsService.getProducts(
       user.vendor.id,
-      page || 1,
-      limit || 20,
+      Number(page) || 1,
+      Number(limit) || 20,
       includeInactive ?? true,
       search,
     );
