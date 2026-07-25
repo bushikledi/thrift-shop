@@ -2178,6 +2178,11 @@ export interface components {
         AdminStatsResponseDto: {
             totalUsers: number;
             totalVendors: number;
+            verifiedVendors: number;
+            avgVendorRating: number;
+            totalCustomers: number;
+            totalAdmins: number;
+            verifiedUsers: number;
             totalProducts: number;
             totalOrders: number;
             totalRevenue: number;

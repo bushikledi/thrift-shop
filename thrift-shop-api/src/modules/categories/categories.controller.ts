@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -47,7 +48,10 @@ export class CategoriesController {
     description: 'List of categories',
     type: [CategoryResponseDto],
   })
-  async findAll(@Query('includeInactive') includeInactive?: boolean) {
+  async findAll(
+    @Query('includeInactive', new ParseBoolPipe({ optional: true }))
+    includeInactive?: boolean,
+  ) {
     return this.categoriesService.findAll(includeInactive);
   }
 

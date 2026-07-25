@@ -10,6 +10,7 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { UserRole, OrderStatus } from '../../../generated/prisma/client';
+import { ToBoolean } from '../../../common/decorators';
 
 export class AdminUserQueryDto {
   @ApiPropertyOptional()
@@ -25,13 +26,13 @@ export class AdminUserQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @ToBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @ToBoolean()
   emailVerified?: boolean;
 
   @ApiPropertyOptional({ default: 1 })
@@ -80,7 +81,7 @@ export class AdminVendorQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @ToBoolean()
   verified?: boolean;
 
   @ApiPropertyOptional({ default: 1 })

@@ -36,6 +36,8 @@ export class AdminService {
       newUsersThisMonth,
       newOrdersThisMonth,
       pendingVendorVerifications,
+      verifiedVendors,
+      vendorRating,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.vendor.count(),
@@ -57,11 +59,15 @@ export class AdminService {
       this.prisma.vendor.count({
         where: { verified: false },
       }),
+      this.prisma.vendor.count({ where: { verified: true } }),
+      this.prisma.vendor.aggregate({ _avg: { rating: true } }),
     ]);
 
     return {
       totalUsers,
       totalVendors,
+      verifiedVendors,
+      avgVendorRating: Number(vendorRating._avg.rating ?? 0),
       totalCustomers,
       totalAdmins,
       verifiedUsers,
