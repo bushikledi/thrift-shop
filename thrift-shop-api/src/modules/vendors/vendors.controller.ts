@@ -145,12 +145,14 @@ export class VendorsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('includeInactive') includeInactive?: boolean,
+    @Query('search') search?: string,
   ) {
     return this.vendorsService.getProducts(
       user.vendor.id,
       page || 1,
       limit || 20,
       includeInactive ?? true,
+      search,
     );
   }
 

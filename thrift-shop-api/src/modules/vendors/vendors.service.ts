@@ -165,9 +165,21 @@ export class VendorsService {
     page = 1,
     limit = 20,
     includeInactive = false,
+    search?: string,
   ) {
     const skip = (page - 1) * limit;
-    const where = includeInactive ? { vendorId } : { vendorId, isActive: true };
+    const where: Prisma.ProductWhereInput = {
+      vendorId,
+      ...(includeInactive ? {} : { isActive: true }),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { brand: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
 
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({

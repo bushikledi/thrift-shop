@@ -1092,15 +1092,20 @@ export default function CheckoutPage() {
                   <div className="space-y-3 max-h-64 overflow-y-auto">
                     {cartItems.map((item) => (
                       <div key={item.id} className="flex gap-3">
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-muted">
-                          <Image
-                            src={
-                              item.product.media?.[0]?.url || "/placeholder.jpg"
-                            }
-                            alt={item.product.title}
-                            fill
-                            className="object-cover"
-                          />
+                        {/* Outer wrapper is positioned but NOT clipped, so the
+                            quantity badge isn't cut off; only the image clips. */}
+                        <div className="relative h-16 w-16 shrink-0">
+                          <div className="h-full w-full overflow-hidden rounded bg-muted">
+                            <Image
+                              src={
+                                item.product.media?.[0]?.url ||
+                                "/placeholder.jpg"
+                              }
+                              alt={item.product.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
                           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
                             {item.quantity}
                           </span>
