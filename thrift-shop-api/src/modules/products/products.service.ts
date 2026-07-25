@@ -300,6 +300,27 @@ export class ProductsService {
       throw new ForbiddenException('You can only delete your own products');
     }
 
+    // A product that already appears in an order cannot be hard-deleted without
+    // orphaning that order's line items (which must be preserved) — a raw
+    // delete failed with a foreign-key error. Archive it instead; only products
+    // never ordered are removed outright.
+    const orderItemCount = await this.prisma.orderItem.count({
+      where: { productId: id },
+    });
+
+    if (orderItemCount > 0) {
+      await this.prisma.product.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      await this.invalidateProductCache(id, product.slug);
+      await this.invalidateFeaturedCache();
+      return {
+        message:
+          'Product has existing orders and was archived instead of deleted.',
+      };
+    }
+
     await this.productsRepository.delete(id);
 
     // Invalidate caches

@@ -44,7 +44,10 @@ const productSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
   price: z.number().min(0.01, "Price must be greater than 0"),
-  comparePrice: z.number().positive().optional().nullable(),
+  comparePrice: z
+    .number()
+    .positive("Compare price must be greater than 0")
+    .optional(),
   quantity: z.number().int().min(0, "Quantity must be 0 or greater"),
   condition: z.enum(["LIKE_NEW", "VERY_GOOD", "GOOD", "FAIR", "POOR"]),
   categoryId: z.string().uuid("Please select a valid category").min(1, "Please select a category"),
@@ -417,7 +420,12 @@ export function ProductForm({ product, mode }: ProductFormProps) {
                       min="0"
                       placeholder="Original price"
                       className="pl-7"
-                      {...register("comparePrice", { valueAsNumber: true })}
+                      {...register("comparePrice", {
+                        // Empty -> undefined (optional), not NaN, so an omitted
+                        // compare-at price doesn't fail validation.
+                        setValueAs: (v) =>
+                          v === "" || v === null ? undefined : Number(v),
+                      })}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">

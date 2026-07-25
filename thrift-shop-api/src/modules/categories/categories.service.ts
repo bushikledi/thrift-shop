@@ -148,26 +148,47 @@ export class CategoriesService {
   async delete(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: {
-        children: true,
-        _count: { select: { products: true } },
-      },
     });
 
     if (!category) {
       throw new NotFoundException('Category not found');
     }
 
-    if (category.children.length > 0) {
-      throw new ConflictException('Cannot delete category with subcategories');
+    // Collect the category and every descendant, grouped by depth, so we can
+    // delete leaves first and never violate the parent/child foreign key.
+    const levels: string[][] = [[id]];
+    let frontier = [id];
+    while (frontier.length > 0) {
+      const children = await this.prisma.category.findMany({
+        where: { parentId: { in: frontier } },
+        select: { id: true },
+      });
+      const ids = children.map((c) => c.id);
+      if (ids.length === 0) break;
+      levels.push(ids);
+      frontier = ids;
     }
 
-    if (category._count.products > 0) {
-      throw new ConflictException('Cannot delete category with products');
-    }
-
-    return this.prisma.category.delete({
-      where: { id },
+    const allIds = levels.flat();
+    // Products keep existing but become uncategorized (categoryId is nullable),
+    // so deleting a category never orphans or blocks on its listings.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.updateMany({
+        where: { categoryId: { in: allIds } },
+        data: { categoryId: null },
+      });
+      // Deepest level first.
+      for (let i = levels.length - 1; i >= 0; i--) {
+        await tx.category.deleteMany({ where: { id: { in: levels[i] } } });
+      }
     });
+
+    const subCount = allIds.length - 1;
+    return {
+      message:
+        subCount > 0
+          ? `Category and ${subCount} subcategory(ies) deleted; affected products are now uncategorized.`
+          : 'Category deleted.',
+    };
   }
 }
