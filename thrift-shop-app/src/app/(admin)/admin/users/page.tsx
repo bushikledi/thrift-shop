@@ -19,8 +19,10 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +80,21 @@ import type { UserProfileResponseDto, UserRole } from "@/types";
 
 const PAGE_SIZE = 10;
 
+/**
+ * /admin/users returns isActive, but the generated UserProfileResponseDto
+ * (shared with /users/me) does not describe it.
+ */
+type AdminUser = UserProfileResponseDto & { isActive?: boolean };
+
+const isDeactivated = (user: UserProfileResponseDto) =>
+  (user as AdminUser).isActive === false;
+
+const statusOptions = [
+  { value: "all", label: "All Accounts" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Deactivated" },
+];
+
 const roleOptions = [
   { value: "all", label: "All Roles" },
   { value: "ADMIN", label: "Admin" },
@@ -115,6 +132,7 @@ export default function AdminUsersPage() {
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [role, setRole] = useState(searchParams.get("role") || "all");
+  const [status, setStatus] = useState(searchParams.get("status") || "all");
   const [page, setPage] = useState(
     parseInt(searchParams.get("page") || "1", 10)
   );
@@ -135,6 +153,10 @@ export default function AdminUsersPage() {
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
     role: role !== "all" ? (role as UserRole) : undefined,
+    // Deleting an account that owns orders/reviews/a store deactivates it
+    // instead. Without this filter those users were indistinguishable from
+    // active ones and impossible to look up.
+    isActive: status === "all" ? undefined : status === "active",
   });
   const { data: adminStats } = useAdminStats();
 
@@ -204,6 +226,21 @@ export default function AdminUsersPage() {
       await deleteUserMutation.mutateAsync(deleteUser.id);
       setDeleteUser(null);
       setSelectedUsers(selectedUsers.filter((id) => id !== deleteUser.id));
+    } catch {
+      // Error is handled by the mutation
+    }
+  };
+
+  /**
+   * Deactivating blocks sign-in but keeps the account's orders and reviews,
+   * which is also what "delete" falls back to for those users.
+   */
+  const handleToggleActive = async (user: UserProfileResponseDto) => {
+    try {
+      await updateUserMutation.mutateAsync({
+        id: user.id,
+        data: { isActive: isDeactivated(user) },
+      });
     } catch {
       // Error is handled by the mutation
     }
@@ -328,6 +365,24 @@ export default function AdminUsersPage() {
               className="pl-10"
             />
           </div>
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="Account" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={role} onValueChange={handleRoleFilter}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Role" />
@@ -382,6 +437,7 @@ export default function AdminUsersPage() {
                   </TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Email Status</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="w-12"></TableHead>
@@ -395,7 +451,10 @@ export default function AdminUsersPage() {
                   return (
                     <TableRow
                       key={user.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/50",
+                        isDeactivated(user) && "opacity-60"
+                      )}
                       onClick={() => setViewUser(user)}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -432,6 +491,19 @@ export default function AdminUsersPage() {
                           <RoleIcon className="h-3 w-3" />
                           {roleInfo?.label || user.role}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {isDeactivated(user) ? (
+                          <Badge variant="outline" className="gap-1 text-muted-foreground">
+                            <Ban className="h-3 w-3" />
+                            Deactivated
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            Active
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {user.emailVerified ? (
@@ -483,6 +555,22 @@ export default function AdminUsersPage() {
                             >
                               <Shield className="mr-2 h-4 w-4" />
                               Change Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleToggleActive(user)}
+                              disabled={updateUserMutation.isPending}
+                            >
+                              {isDeactivated(user) ? (
+                                <>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Reactivate
+                                </>
+                              ) : (
+                                <>
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Deactivate
+                                </>
+                              )}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -578,6 +666,25 @@ export default function AdminUsersPage() {
                     <span>{viewUser.phone || "Not provided"}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Account</span>
+                    <span>
+                      {isDeactivated(viewUser) ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-muted-foreground"
+                        >
+                          <Ban className="h-3 w-3" />
+                          Deactivated
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          Active
+                        </Badge>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">
                       Email Verified
                     </span>
@@ -649,6 +756,27 @@ export default function AdminUsersPage() {
                 >
                   <Shield className="mr-2 h-4 w-4" />
                   Change Role
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={updateUserMutation.isPending}
+                  onClick={() => {
+                    handleToggleActive(viewUser);
+                    setViewUser(null);
+                  }}
+                >
+                  {isDeactivated(viewUser) ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Reactivate Account
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="mr-2 h-4 w-4" />
+                      Deactivate Account
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="destructive"
@@ -745,7 +873,9 @@ export default function AdminUsersPage() {
               <span className="font-medium">
                 {deleteUser?.name || deleteUser?.email}
               </span>
-              ? This action cannot be undone.
+              ? Accounts with orders, reviews or a vendor store cannot be
+              removed without destroying that history — those are deactivated
+              instead, and can be reactivated later.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
