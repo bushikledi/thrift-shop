@@ -4,6 +4,7 @@ import { ProductsService } from './products.service';
 import { ProductsRepository } from './products.repository';
 import { ViewCountService } from './view-count.service';
 import { PrismaService } from '../../prisma';
+import type { Prisma } from '../../generated/prisma/client';
 
 /**
  * Focused coverage for the category filter (F3): products live on leaf
@@ -32,17 +33,29 @@ describe('ProductsService.findAll category filtering', () => {
         { provide: PrismaService, useValue: prisma },
         {
           provide: ProductsRepository,
-          useValue: { findMany: repoFindMany, count: jest.fn().mockResolvedValue(0) },
+          useValue: {
+            findMany: repoFindMany,
+            count: jest.fn().mockResolvedValue(0),
+          },
         },
         { provide: ViewCountService, useValue: { increment: jest.fn() } },
-        { provide: CACHE_MANAGER, useValue: { get: jest.fn(), set: jest.fn() } },
+        {
+          provide: CACHE_MANAGER,
+          useValue: { get: jest.fn(), set: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
   });
 
-  const whereArg = () => repoFindMany.mock.calls[0][0].where;
+  /** The `where` clause the service handed to the repository. */
+  const whereArg = (): Prisma.ProductWhereInput => {
+    const [args] = repoFindMany.mock.calls[0] as [
+      { where: Prisma.ProductWhereInput },
+    ];
+    return args.where;
+  };
 
   it('expands a parent category to itself + all descendants', async () => {
     // womens-clothing -> [dresses, tops], each leaf childless
@@ -51,7 +64,7 @@ describe('ProductsService.findAll category filtering', () => {
       .mockResolvedValueOnce([{ id: 'cat-dresses' }, { id: 'cat-tops' }])
       .mockResolvedValueOnce([]); // no grandchildren
 
-    await service.findAll({ categorySlug: 'womens-clothing' } as never);
+    await service.findAll({ categorySlug: 'womens-clothing' });
 
     expect(whereArg().categoryId).toEqual({
       in: ['cat-womens', 'cat-dresses', 'cat-tops'],
@@ -62,7 +75,7 @@ describe('ProductsService.findAll category filtering', () => {
     prisma.category.findFirst.mockResolvedValue({ id: 'cat-x' });
     prisma.category.findMany.mockResolvedValueOnce([]);
 
-    await service.findAll({ categoryId: 'cat-x' } as never);
+    await service.findAll({ categoryId: 'cat-x' });
 
     expect(prisma.category.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'cat-x' } }),
@@ -73,14 +86,14 @@ describe('ProductsService.findAll category filtering', () => {
   it('matches nothing when the category does not exist', async () => {
     prisma.category.findFirst.mockResolvedValue(null);
 
-    await service.findAll({ categorySlug: 'does-not-exist' } as never);
+    await service.findAll({ categorySlug: 'does-not-exist' });
 
     // A sentinel id that cannot match any product -> empty result, not "all".
     expect(whereArg().categoryId).toBe('__no_such_category__');
   });
 
   it('does not add a category filter when none is requested', async () => {
-    await service.findAll({} as never);
+    await service.findAll({});
     expect(prisma.category.findFirst).not.toHaveBeenCalled();
     expect(whereArg().categoryId).toBeUndefined();
   });

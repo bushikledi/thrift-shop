@@ -219,9 +219,7 @@ export class AdminService {
     // preserved — a raw delete failed with a foreign-key error. Deactivate
     // them instead; only genuinely unreferenced accounts are removed outright.
     const hasReferences =
-      Boolean(user.vendor) ||
-      user._count.orders > 0 ||
-      user._count.reviews > 0;
+      Boolean(user.vendor) || user._count.orders > 0 || user._count.reviews > 0;
 
     if (hasReferences) {
       await this.prisma.user.update({

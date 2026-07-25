@@ -24,9 +24,7 @@ describe('OptionalJwtAuthGuard', () => {
     });
 
     it('returns undefined even when passport reports an error', () => {
-      expect(
-        guard.handleRequest(new Error('no token'), false),
-      ).toBeUndefined();
+      expect(guard.handleRequest(new Error('no token'), false)).toBeUndefined();
     });
   });
 
