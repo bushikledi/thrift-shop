@@ -36,7 +36,12 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:build": "docker compose build",
-    "clean": "rm -rf node_modules thrift-shop-api/node_modules thrift-shop-app/node_modules"
+    "clean": "rm -rf node_modules thrift-shop-api/node_modules thrift-shop-app/node_modules",
+    "load:smoke": "docker compose run --rm --no-deps k6 run /scripts/smoke.js",
+    "load:browse": "docker compose run --rm --no-deps k6 run /scripts/browse.js",
+    "load:search": "docker compose run --rm --no-deps k6 run /scripts/search.js",
+    "load:checkout": "docker compose run --rm --no-deps k6 run /scripts/checkout.js",
+    "load": "npm run load:browse && npm run load:search"
   },
   "engines": {
     "node": ">=20.0.0",
