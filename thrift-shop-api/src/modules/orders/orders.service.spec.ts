@@ -511,6 +511,96 @@ describe('OrdersService', () => {
     });
   });
 
+  /**
+   * Customers previously had no way to cancel: PUT :id/status is guarded by
+   * the VENDOR role, so the "Cancel Order" button in the account area had
+   * nothing to call.
+   */
+  describe('cancelOwnOrder', () => {
+    beforeEach(() => {
+      mockPrismaService.orderItem.findMany.mockResolvedValue(mockOrder.items);
+      mockPrismaService.product.update.mockResolvedValue({});
+    });
+
+    it('cancels an order the user placed and restores its stock', async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue(mockOrder);
+      mockOrdersRepository.updateStatus.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.CANCELLED,
+      });
+
+      const result = await service.cancelOwnOrder('order-1', 'user-1');
+
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+      // Quantity goes back and the listing is re-activated: a unique item is
+      // deactivated when its last unit sells.
+      expect(mockPrismaService.product.update).toHaveBeenCalledWith({
+        where: { id: 'product-1' },
+        data: { quantity: { increment: 1 }, isActive: true },
+      });
+    });
+
+    it('records the reason for the seller', async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue(mockOrder);
+      mockOrdersRepository.updateStatus.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.CANCELLED,
+      });
+
+      await service.cancelOwnOrder('order-1', 'user-1', 'Wrong size');
+
+      expect(mockOrdersRepository.updateStatus).toHaveBeenCalledWith(
+        'order-1',
+        OrderStatus.CANCELLED,
+        expect.objectContaining({
+          vendorNotes: 'Cancelled by customer: Wrong size',
+        }),
+      );
+    });
+
+    it("reports another user's order as missing rather than forbidden", async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue(mockOrder);
+
+      // Order ids would otherwise be probeable: 403 confirms existence.
+      await expect(
+        service.cancelOwnOrder('order-1', 'someone-else'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockOrdersRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('refuses once the order has shipped', async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.SHIPPED,
+      });
+
+      await expect(service.cancelOwnOrder('order-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPrismaService.product.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to cancel twice, so stock is not credited again', async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.CANCELLED,
+      });
+
+      await expect(service.cancelOwnOrder('order-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPrismaService.product.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for an order that does not exist', async () => {
+      mockOrdersRepository.findUnique.mockResolvedValue(null);
+
+      await expect(service.cancelOwnOrder('nope', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('getVendorOrders', () => {
     it('should return paginated orders for vendor', async () => {
       mockOrdersRepository.findByVendor.mockResolvedValue({

@@ -87,6 +87,17 @@ export const ordersApi = {
     data: UpdateOrderStatusDto
   ): Promise<OrderResponseDto> =>
     put<OrderResponseDto, UpdateOrderStatusDto>(`/orders/${id}/status`, data),
+
+  /**
+   * Cancel an order you placed.
+   *
+   * Separate from updateStatus, which is the vendor's fulfilment control and
+   * requires the VENDOR role.
+   */
+  cancel: (id: string, reason?: string): Promise<OrderResponseDto> =>
+    post<OrderResponseDto, { reason?: string }>(`/orders/${id}/cancel`, {
+      reason,
+    }),
 };
 
 export default ordersApi;

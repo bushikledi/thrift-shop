@@ -27,12 +27,23 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useOrders } from "@/hooks/useOrders";
+import { useOrders, useCancelOrder } from "@/hooks/useOrders";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Pagination, LoadingSkeleton, EmptyState } from "@/components/shared";
+import {
+  Pagination,
+  LoadingSkeleton,
+  EmptyState,
+  CancelOrderConfirmation,
+} from "@/components/shared";
+import { nextOrderStatuses } from "@/lib/order-status";
 import type { OrderResponseDto, OrderItemResponseDto } from "@/types";
 
 const PAGE_SIZE = 10;
+
+/** Product to send a reviewer to — reviews are written on the product page. */
+function reviewTarget(order: OrderResponseDto): string | undefined {
+  return order.items?.[0]?.product?.slug;
+}
 
 type OrderStatus =
   | "pending"
@@ -88,7 +99,11 @@ export default function AccountOrdersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
+  const [cancelTarget, setCancelTarget] = useState<OrderResponseDto | null>(
+    null
+  );
 
+  const cancelOrder = useCancelOrder();
   const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useOrders({
@@ -289,24 +304,39 @@ export default function AccountOrdersPage() {
                       {/* Order Actions */}
                       <div className="flex flex-wrap items-center justify-between gap-2 p-4 border-t bg-muted/50">
                         <div className="flex flex-wrap gap-2">
-                          {order.status === "DELIVERED" && (
-                            <Button variant="outline" size="sm">
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              Write Review
-                            </Button>
-                          )}
-                          {["PENDING", "CONFIRMED"].includes(order.status) && (
+                          {order.status === "DELIVERED" &&
+                            reviewTarget(order) && (
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/products/${reviewTarget(order)}`}>
+                                  <MessageSquare className="mr-2 h-4 w-4" />
+                                  Write Review
+                                </Link>
+                              </Button>
+                            )}
+                          {/* This button existed with no onClick — clicking it
+                              did nothing at all. The cancellable window comes
+                              from the API's transition table. */}
+                          {nextOrderStatuses(order.status).includes(
+                            "CANCELLED"
+                          ) && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-destructive"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setCancelTarget(order)}
+                              disabled={cancelOrder.isPending}
                             >
                               <XCircle className="mr-2 h-4 w-4" />
                               Cancel Order
                             </Button>
                           )}
                           {order.status === "DELIVERED" && (
-                            <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              title="Returns are handled by the seller for now"
+                            >
                               <RotateCcw className="mr-2 h-4 w-4" />
                               Return
                             </Button>
@@ -343,6 +373,20 @@ export default function AccountOrdersPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <CancelOrderConfirmation
+        open={cancelTarget !== null}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        orderId={
+          cancelTarget?.orderNumber || cancelTarget?.id.slice(0, 8) || ""
+        }
+        isLoading={cancelOrder.isPending}
+        onConfirm={async () => {
+          if (!cancelTarget) return;
+          await cancelOrder.mutateAsync({ id: cancelTarget.id });
+          setCancelTarget(null);
+        }}
+      />
     </div>
   );
 }

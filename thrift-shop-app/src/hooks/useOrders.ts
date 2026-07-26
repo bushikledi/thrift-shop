@@ -34,7 +34,7 @@ export function useCheckout() {
 
       // Invalidate orders
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.orders() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.orderLists() });
 
       // Card payment: hand off to Stripe's hosted checkout. The order stays
       // unpaid until Stripe's webhook confirms it, so don't claim success yet.
@@ -121,6 +121,35 @@ export function useVendorOrders(
     ),
     queryFn: () => ordersApi.getVendorOrders(params),
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Cancel an order you placed (customer).
+ *
+ * Distinct from useUpdateOrderStatus, which drives the vendor's fulfilment
+ * control and is rejected for a customer by the VENDOR role guard.
+ */
+export function useCancelOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      ordersApi.cancel(id, reason),
+    onSuccess: (order: OrderResponseDto) => {
+      queryClient.setQueryData(queryKeys.orders.detail(order.id), order);
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.orderLists() });
+      // Cancelling puts the items back on the shelf, so the catalogue and the
+      // product's own page are now out of date.
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      toast.success("Order cancelled");
+    },
+    onError: (error: ApiError) => {
+      // The API explains *why* (already shipped, already cancelled). Show that
+      // rather than a generic failure.
+      toast.error(error.message || "Failed to cancel order");
+    },
   });
 }
 

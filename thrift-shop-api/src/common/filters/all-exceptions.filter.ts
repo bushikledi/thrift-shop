@@ -62,8 +62,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       correlationId,
     };
 
-    // Only include validation error details (sanitized), never expose internal details
-    if (details && errorCode === (ErrorCode.VALIDATION_ERROR as string)) {
+    // Only include validation error details (sanitized), never expose internal
+    // details.
+    //
+    // This used to also require errorCode === VALIDATION_ERROR, which is only
+    // mapped from 422. class-validator failures are 400 -> BAD_REQUEST, so the
+    // per-field messages were collected and then dropped on the floor: every
+    // rejected request in the API answered with a bare "Validation failed"
+    // and no indication of which field was wrong.
+    if (details?.validationErrors) {
       errorResponse.details = { validationErrors: details.validationErrors };
     }
 

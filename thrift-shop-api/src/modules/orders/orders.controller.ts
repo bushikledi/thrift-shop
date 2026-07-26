@@ -25,6 +25,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { OrdersService } from './orders.service';
 import {
+  CancelOrderDto,
   CreateOrderDto,
   UpdateOrderStatusDto,
   OrderResponseDto,
@@ -120,6 +121,41 @@ export class OrdersController {
     @CurrentUser() user: { id: string; vendor?: { id: string } },
   ) {
     return this.ordersService.findById(id, user.id, user.vendor?.id);
+  }
+
+  /**
+   * Customer-facing cancellation. Deliberately separate from
+   * PUT :id/status, which is the vendor's fulfilment control and requires the
+   * VENDOR role — a buyer had no way to cancel their own order.
+   */
+  @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel your own order' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order cancelled',
+    type: OrderResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Order has progressed too far to be cancelled',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Not authenticated',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Order not found',
+    type: ErrorResponseDto,
+  })
+  async cancelOrder(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: CancelOrderDto,
+  ) {
+    return this.ordersService.cancelOwnOrder(id, user.id, dto.reason);
   }
 
   @Get()

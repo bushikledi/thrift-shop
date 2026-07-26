@@ -1505,6 +1505,7 @@ export interface components {
             name: string;
             phone?: string;
             avatar?: string;
+            bio?: string;
             /** @enum {string} */
             role: "CUSTOMER" | "VENDOR" | "ADMIN";
             address?: Record<string, never>;
@@ -1518,6 +1519,8 @@ export interface components {
             name?: string;
             /** @example +355691234567 */
             phone?: string;
+            /** @example Long-time thrifter, mostly denim. */
+            bio?: string;
             avatar?: string;
             /**
              * @example {

@@ -31,6 +31,9 @@ export class UserProfileResponseDto {
   @ApiPropertyOptional()
   avatar?: string;
 
+  @ApiPropertyOptional()
+  bio?: string;
+
   @ApiProperty({ enum: UserRole })
   role!: UserRole;
 
