@@ -20,8 +20,35 @@ import { logger } from "./logger";
 // ============================================
 // Configuration
 // ============================================
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000/api/v1";
+/**
+ * Where the API lives.
+ *
+ * Two variables are accepted because the deployment config and the code had
+ * drifted apart: docker-compose and .env.example set NEXT_PUBLIC_API_URL (an
+ * origin), while this file only ever read NEXT_PUBLIC_API_BASE (an origin plus
+ * the version prefix). Nothing set the latter, so every build quietly used the
+ * localhost fallback below and pointing the app at any other host had no
+ * effect.
+ *
+ *   NEXT_PUBLIC_API_BASE  full base incl. prefix — http://api.example.com/api/v1
+ *   NEXT_PUBLIC_API_URL   origin only, prefix appended — http://api.example.com
+ *
+ * Both are read at build time (Next.js inlines NEXT_PUBLIC_*), so changing
+ * either means rebuilding the image, not just restarting it.
+ */
+const API_VERSION_PREFIX = "/api/v1";
+
+function resolveApiBaseUrl(): string {
+  const explicitBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
+  if (explicitBase) return explicitBase.replace(/\/+$/, "");
+
+  const origin = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (origin) return `${origin.replace(/\/+$/, "")}${API_VERSION_PREFIX}`;
+
+  return `http://localhost:3000${API_VERSION_PREFIX}`;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 

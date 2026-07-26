@@ -28,6 +28,14 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# NEXT_PUBLIC_* values are inlined into the client bundle at build time, so
+# they have to be present *here* — setting them on the running container does
+# nothing. docker-compose.yml has always passed this as a build arg, but
+# without the matching ARG it was silently discarded and every image was built
+# against the localhost fallback.
+ARG NEXT_PUBLIC_API_URL=http://localhost:3000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Build the application
 RUN npm run build
 
