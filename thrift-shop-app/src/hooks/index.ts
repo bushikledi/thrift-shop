@@ -82,6 +82,7 @@ export {
   useOrder,
   useVendorOrders,
   useUpdateOrderStatus,
+  useCancelOrder,
   getOrderStatusColor,
   getPaymentStatusColor,
 } from "./useOrders";

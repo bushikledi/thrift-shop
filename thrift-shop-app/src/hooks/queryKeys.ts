@@ -15,8 +15,12 @@ export const queryKeys = {
     all: ["users"] as const,
     profile: () => [...queryKeys.users.all, "profile"] as const,
     savedItems: () => [...queryKeys.users.all, "saved"] as const,
+    // Prefix key for invalidation — `orders()` with no argument appends a
+    // literal `undefined`, which matches no real query. See the note on
+    // `vendors.me` below.
+    orderLists: () => [...queryKeys.users.all, "orders"] as const,
     orders: (params?: { page?: number; limit?: number }) =>
-      [...queryKeys.users.all, "orders", params] as const,
+      [...queryKeys.users.orderLists(), params] as const,
     address: () => [...queryKeys.users.all, "address"] as const,
     preferences: () => [...queryKeys.users.all, "preferences"] as const,
   },

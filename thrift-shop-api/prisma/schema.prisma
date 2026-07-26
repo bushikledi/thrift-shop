@@ -74,6 +74,9 @@ model User {
   name          String
   phone         String?
   avatar        String?
+  // Free-text "about me". The account profile form has always shown a Bio
+  // field; there was nowhere to store it, so the whole save 400'd.
+  bio           String?
   role          UserRole  @default(CUSTOMER)
   isActive      Boolean   @default(true) @map("is_active")
   emailVerified Boolean   @default(false) @map("email_verified")

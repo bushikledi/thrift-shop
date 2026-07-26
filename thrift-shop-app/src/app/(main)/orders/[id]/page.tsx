@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -21,6 +21,7 @@ import {
   MessageSquare,
   Printer,
   HelpCircle,
+  Ban,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useOrder } from "@/hooks/useOrders";
-import { LoadingSkeleton } from "@/components/shared";
+import { useOrder, useCancelOrder } from "@/hooks/useOrders";
+import { LoadingSkeleton, CancelOrderConfirmation } from "@/components/shared";
+import { nextOrderStatuses } from "@/lib/order-status";
 import type { OrderItemResponseDto } from "@/types";
 
 type OrderStatus =
@@ -97,6 +99,8 @@ interface OrderDetailPageProps {
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = use(params);
   const { data: order, isLoading, error } = useOrder(id);
+  const cancelOrder = useCancelOrder();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   if (isLoading) {
     return (
@@ -138,6 +142,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   );
   const isCancelled =
     order.status === "CANCELLED" || order.status === "REFUNDED";
+  // Mirrors the API's transition table: cancellable while pending, confirmed
+  // or processing, and not once it has shipped.
+  const canCancel = nextOrderStatuses(order.status).includes("CANCELLED");
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
@@ -162,16 +169,46 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          {canCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setConfirmingCancel(true)}
+              disabled={cancelOrder.isPending}
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              {cancelOrder.isPending ? "Cancelling…" : "Cancel Order"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
-          <Button variant="outline" size="sm">
+          {/* No support surface exists to link to yet; say so rather than
+              rendering a button that does nothing. */}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="Support requests are coming soon"
+          >
             <HelpCircle className="mr-2 h-4 w-4" />
             Get Help
           </Button>
         </div>
       </div>
+
+      <CancelOrderConfirmation
+        open={confirmingCancel}
+        onOpenChange={setConfirmingCancel}
+        orderId={order.orderNumber || order.id.slice(0, 8)}
+        isLoading={cancelOrder.isPending}
+        onConfirm={async () => {
+          await cancelOrder.mutateAsync({ id: order.id });
+          setConfirmingCancel(false);
+        }}
+      />
 
       {/* Order Progress */}
       {!isCancelled && (

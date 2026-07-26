@@ -31,6 +31,24 @@ import { mapOrderItems } from './order-response.mapper';
 import { PaymentsService } from '../payments/payments.service';
 import { PromoService } from '../promo/promo.service';
 
+/**
+ * The order lifecycle, as a single table.
+ *
+ * Both the vendor status update and the customer cancellation consult this, so
+ * "can this order still be cancelled?" has one answer rather than one per
+ * caller. The frontend mirrors it in lib/order-status.ts.
+ */
+export const VALID_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: ['RETURNED'],
+  CANCELLED: [],
+  RETURNED: ['REFUNDED'],
+  REFUNDED: [],
+};
+
 interface ShippingConfig {
   baseRate: number;
   perItemRate: number;
@@ -539,38 +557,14 @@ export class OrdersService {
       throw new ForbiddenException('Access denied');
     }
 
-    // Validate status transition
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['PROCESSING', 'CANCELLED'],
-      PROCESSING: ['SHIPPED', 'CANCELLED'],
-      SHIPPED: ['DELIVERED'],
-      DELIVERED: ['RETURNED'],
-      CANCELLED: [],
-      RETURNED: ['REFUNDED'],
-      REFUNDED: [],
-    };
-
-    if (!validTransitions[order.status].includes(dto.status)) {
+    if (!VALID_STATUS_TRANSITIONS[order.status].includes(dto.status)) {
       throw new BadRequestException(
         `Cannot transition from ${order.status} to ${dto.status}`,
       );
     }
 
     if (dto.status === 'CANCELLED') {
-      // Restore product quantities
-      const items = await this.prisma.orderItem.findMany({
-        where: { orderId: id },
-      });
-      for (const item of items) {
-        await this.prisma.product.update({
-          where: { id: item.productId },
-          data: {
-            quantity: { increment: item.quantity },
-            isActive: true,
-          },
-        });
-      }
+      await this.restoreStockForOrder(id);
     }
 
     const previousStatus = order.status;
@@ -596,6 +590,95 @@ export class OrdersService {
     );
 
     return updatedOrder;
+  }
+
+  /**
+   * Cancel an order the requesting user placed.
+   *
+   * Until now the only way to cancel was PUT /orders/:id/status, which is
+   * vendor-only — a customer had no way to cancel their own order at all.
+   *
+   * Whether cancelling is still allowed is decided by the same transition
+   * table the vendor path uses, so there is one rule rather than two that can
+   * drift: an order can be cancelled while it is PENDING, CONFIRMED or
+   * PROCESSING, and not once it has shipped.
+   *
+   * Guest orders are out of scope here: they have no account to authenticate
+   * against, and /orders/track is deliberately read-only.
+   */
+  async cancelOwnOrder(id: string, userId: string, reason?: string) {
+    const order = await this.ordersRepository.findUnique({ where: { id } });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Same response for someone else's order as for a missing one, so this
+    // cannot be used to probe which order ids exist.
+    if (order.buyerId !== userId) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!VALID_STATUS_TRANSITIONS[order.status].includes('CANCELLED')) {
+      throw new BadRequestException(
+        order.status === 'CANCELLED'
+          ? 'This order is already cancelled.'
+          : `An order that is already ${order.status.toLowerCase()} can no longer be cancelled. Contact the seller for a return.`,
+      );
+    }
+
+    await this.restoreStockForOrder(id);
+
+    const previousStatus = order.status;
+    const updatedOrder = await this.ordersRepository.updateStatus(
+      id,
+      'CANCELLED',
+      {
+        // Recorded on the order so the vendor can see why it went away.
+        vendorNotes: reason
+          ? `Cancelled by customer: ${reason}`
+          : 'Cancelled by customer',
+      },
+    );
+
+    this.emitStatusChangedEvent(updatedOrder, previousStatus, {
+      status: 'CANCELLED',
+    }).catch((error: unknown) => {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to emit status change event for ${order.orderNumber}: ${errorMessage}`,
+      );
+    });
+
+    // Same normalisation GET /orders/:id applies. Without it the response
+    // carries raw Prisma `title`/`media` on each item, so a client that put
+    // this straight into its cache (as the order page does) would suddenly
+    // render every line as an unnamed "Product" with no image.
+    return mapOrderItems(updatedOrder);
+  }
+
+  /**
+   * Puts a cancelled order's items back on the shelf.
+   *
+   * Re-activates the product as well as restoring the count: a unique thrift
+   * item is deactivated when its last unit sells, so without this it would
+   * stay hidden from the catalogue with stock sitting on it.
+   */
+  private async restoreStockForOrder(orderId: string): Promise<void> {
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId },
+    });
+
+    for (const item of items) {
+      await this.prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          quantity: { increment: item.quantity },
+          isActive: true,
+        },
+      });
+    }
   }
 
   /**

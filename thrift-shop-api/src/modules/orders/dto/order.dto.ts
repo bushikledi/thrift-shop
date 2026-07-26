@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsEmail,
   IsIn,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -143,4 +144,19 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   @IsString()
   vendorNotes?: string;
+}
+
+/**
+ * Customer-initiated cancellation. The target status is not a parameter —
+ * this endpoint only ever cancels — so the caller supplies at most a reason.
+ */
+export class CancelOrderDto {
+  @ApiPropertyOptional({
+    example: 'Ordered the wrong size',
+    description: 'Shown to the seller alongside the cancellation',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

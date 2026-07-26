@@ -4,11 +4,11 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Camera, Loader2, Save } from "lucide-react";
+import { Camera, Loader2, Lock, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,25 +24,52 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUserProfile } from "@/hooks/useUsers";
-import { useUpdateUserProfile } from "@/hooks/useUsers";
+import { useUserProfile, useUpdateUserProfile } from "@/hooks/useUsers";
+import { mediaApi } from "@/lib/api/media";
 import { FieldError } from "@/components/forms/field-error";
 
+/**
+ * Only what PUT /users/me actually accepts.
+ *
+ * `email` used to be part of this form and was sent with every save. The API
+ * validates with `forbidNonWhitelisted`, and UpdateUserDto has no `email` (nor,
+ * previously, `bio`) — so the whole request came back 400 and *no* profile
+ * change could ever be saved. The address is the login identity and is tied to
+ * `emailVerified`, so it is shown read-only here rather than silently dropped.
+ */
 const profileSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
+  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
+  phone: z.string().max(30, "Phone number is too long").optional(),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
+/** Blank optional fields are omitted rather than sent as "". */
+function emptyToUndefined(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/** Matches the copy under the upload control. */
+const AVATAR_MAX_MB = 2;
+
+/** Fields /users/me returns that the generated DTO does not yet document. */
+interface ProfileFields {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  bio?: string | null;
+  avatar?: string | null;
+}
+
 export default function AccountProfilePage() {
   const { user, updateUser } = useAuthStore();
-  const { data: profile } = useUserProfile();
+  const { data: profileData } = useUserProfile();
+  const profile = profileData as (ProfileFields & typeof profileData) | undefined;
 
   const profileCounts = (
-    profile as { _count?: { orders?: number; reviews?: number; savedItems?: number } }
+    profileData as { _count?: { orders?: number; reviews?: number; savedItems?: number } }
   )?._count;
   const accountCounts = {
     orders: profileCounts?.orders ?? 0,
@@ -50,6 +77,7 @@ export default function AccountProfilePage() {
     savedItems: profileCounts?.savedItems ?? 0,
   };
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const updateProfileMutation = useUpdateUserProfile();
 
@@ -62,31 +90,77 @@ export default function AccountProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name || "",
-      email: user?.email || "",
       phone: "",
       bio: "",
     },
   });
 
+  // Populate from the stored profile once it loads. Previously the form seeded
+  // itself from the auth store (which holds only id/email/name/role) with
+  // phone and bio hardcoded to "", so a saved phone number never appeared in
+  // the field — and saving would have wiped it.
+  const storedValues = {
+    name: profile?.name ?? user?.name ?? "",
+    phone: profile?.phone ?? "",
+    bio: profile?.bio ?? "",
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+    reset({
+      name: profile.name ?? "",
+      phone: profile.phone ?? "",
+      bio: profile.bio ?? "",
+    });
+  }, [profile, reset]);
+
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      const updatedUser = await updateProfileMutation.mutateAsync(data);
+      const updatedUser = await updateProfileMutation.mutateAsync({
+        name: data.name,
+        phone: emptyToUndefined(data.phone),
+        bio: emptyToUndefined(data.bio),
+      });
       updateUser(updatedUser);
-      toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch {
-      toast.error("Failed to update profile");
+      // useUpdateUserProfile surfaces the server's message; a second generic
+      // toast here just stacked "Failed to update profile" on top of it.
     }
   };
 
   const handleCancel = () => {
-    reset({
-      name: user?.name || "",
-      email: user?.email || "",
-      phone: "",
-      bio: "",
-    });
+    reset(storedValues);
     setIsEditing(false);
+  };
+
+  const handleAvatarChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    // Allow re-picking the same file after a failure.
+    event.target.value = "";
+    if (!file) return;
+
+    if (file.size > AVATAR_MAX_MB * 1024 * 1024) {
+      toast.error(`Image must be ${AVATAR_MAX_MB}MB or smaller`);
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const media = await mediaApi.upload(file, "USER", user?.id);
+      const updatedUser = await updateProfileMutation.mutateAsync({
+        avatar: media.url,
+      });
+      updateUser(updatedUser);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to upload photo"
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   return (
@@ -109,18 +183,40 @@ export default function AccountProfilePage() {
         <CardContent>
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={(user as { avatar?: string })?.avatar} />
+              <AvatarImage
+                src={profile?.avatar ?? (user as { avatar?: string })?.avatar}
+              />
               <AvatarFallback className="text-2xl">
-                {user?.name?.[0] || "U"}
+                {profile?.name?.[0] || user?.name?.[0] || "U"}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-2">
-              <Button variant="outline" size="sm">
-                <Camera className="mr-2 h-4 w-4" />
-                Change Photo
+              {/* Was a button with no onClick. Uploads to media as a USER-owned
+                  asset, then stores the URL on the profile. */}
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                disabled={isUploadingAvatar}
+              >
+                <label className="cursor-pointer">
+                  {isUploadingAvatar ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="mr-2 h-4 w-4" />
+                  )}
+                  {isUploadingAvatar ? "Uploading…" : "Change Photo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                    disabled={isUploadingAvatar}
+                  />
+                </label>
               </Button>
               <p className="text-xs text-muted-foreground">
-                JPG, GIF or PNG. Max size 2MB.
+                JPG, GIF or PNG. Max size {AVATAR_MAX_MB}MB.
               </p>
             </div>
           </div>
@@ -145,21 +241,32 @@ export default function AccountProfilePage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" {...register("name")} disabled={!isEditing} />
+                <Input
+                  aria-invalid={!!errors.name}
+                  id="name"
+                  {...register("name")}
+                  disabled={!isEditing}
+                />
                 <FieldError error={errors.name} />
               </div>
             </div>
 
+            {/* Read-only: the address is the login identity and is tied to
+                email verification, so changing it needs its own verified
+                flow. It was editable here and silently rejected by the API. */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
-                aria-invalid={!!errors.email}
                 id="email"
                 type="email"
-                {...register("email")}
-                disabled={!isEditing}
+                value={profile?.email ?? user?.email ?? ""}
+                readOnly
+                disabled
               />
-              <FieldError error={errors.email} />
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                Your email is used to sign in and can&apos;t be changed here.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -170,7 +277,9 @@ export default function AccountProfilePage() {
                 {...register("phone")}
                 disabled={!isEditing}
                 placeholder="(555) 555-5555"
+                aria-invalid={!!errors.phone}
               />
+              <FieldError error={errors.phone} />
             </div>
 
             <div className="space-y-2">
